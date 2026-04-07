@@ -1,0 +1,12 @@
+.cursorignore
+.cursorrules
+/.cursor
+/Logs
+/Temp
+/Build
+/out
+/bin
+/lib
+/test-results
+
+*.log

@@ -1,0 +1,19 @@
+[
+  {
+    "output": "Bronze",
+    "unit": "ingot",
+    "ingredients": [
+      {"material": "Copper", "min": 75, "max": 75},
+      {"material": "Tin", "min": 25, "max": 25}
+    ]
+  },
+  {
+    "output": "Black Bronze",
+    "unit": "ingot",
+    "ingredients": [
+      {"material": "Copper", "min": 50, "max": 70},
+      {"material": "Gold", "min": 10, "max": 25},
+      {"material": "Silver", "min": 10, "max": 25}
+    ]
+  }
+]
