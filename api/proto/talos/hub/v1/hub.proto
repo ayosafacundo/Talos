@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package talos.hub.v1;
+
+option go_package = "Talos/api/proto/talos/hub/v1;hubpb";
+
+message Message {
+  string source_app_id = 1;
+  string target_app_id = 2;
+  string type = 3;
+  bytes payload = 4;
+  string request_id = 5;
+}
+
+message RouteRequest {
+  Message message = 1;
+}
+
+message RouteResponse {
+  Message message = 1;
+  string error = 2;
+}
+
+message BroadcastRequest {
+  Message message = 1;
+}
+
+message BroadcastResponse {
+  int32 recipient_count = 1;
+}
+
+service HubService {
+  rpc Route(RouteRequest) returns (RouteResponse);
+  rpc Broadcast(BroadcastRequest) returns (BroadcastResponse);
+}

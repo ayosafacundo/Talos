@@ -10,3 +10,6 @@
 /test-results
 
 *.log
+build/bin
+node_modules
+frontend/dist

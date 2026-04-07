@@ -33,6 +33,7 @@ Create a standardized "Talos SDK" that Tiny App developers will use.
 ## Phase 3: Frontend & UX
 1. **The Sidebar:** Build a Discord-style vertical sidebar.
    - Top icon: Static Launchpad.
+   - Bottom icon: Settings.
    - Dynamic icons: One per active app instance.
    - **Feature:** Right-click context menu to set custom background colors per tab (persisted in local DB).
 2. **The Launchpad:** A grid overlay showing all discovered apps.
