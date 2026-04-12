@@ -1,14 +1,18 @@
-# Talos Rust SDK (Baseline)
+# Talos Rust SDK
 
-This crate is the Phase 2 baseline wrapper for Rust tiny apps.
+gRPC hub client over **Unix domain sockets** (same contract as `sdk/go/talos`).
 
-Current shape:
+```rust
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let mut c = talos_sdk::Client::dial("unix:///path/to/talos.sock").await?;
+    c.save_state("app.my.app", b"hello").await?;
+    let (data, found) = c.load_state("app.my.app").await?;
+    assert!(found);
+    Ok(())
+}
+```
 
-- `TalosTransport` trait abstracts transport details
-- `TalosClient` exposes:
-  - `save_state`
-  - `load_state`
-  - `send_message`
-  - `request_permission`
+Use `std::env::var("TALOS_HUB_SOCKET")` or your manifest wiring to obtain the socket URL the host injects for binaries.
 
-Next step is wiring this trait to tonic-based gRPC over Unix sockets / named pipes.
+Integration test (ignored by default): `tests/dial_smoke.rs` — set `TALOS_TEST_SOCKET` and run with `cargo test -- --ignored`.

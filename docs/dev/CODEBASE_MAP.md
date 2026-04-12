@@ -6,10 +6,10 @@ This is the "where is everything?" reference for day-to-day development.
 
 - `api/proto/talos/hub/v1/`
   - gRPC protocol for host hub (`hub.proto` + generated Go files).
-- `frontend/`
-  - Wails frontend directory and Launchpad UI source.
-  - builds into `Packages/Launchpad/dist` via Vite.
-  - includes generated Wails JS bindings under `frontend/wailsjs/`.
+- `Packages/Launchpad/`
+  - Wails frontend directory and Launchpad UI source (React + Vite).
+  - builds into `Packages/Launchpad/dist`.
+  - includes generated Wails JS bindings under `Packages/Launchpad/wailsjs/`.
 - `internal/`
   - backend subsystems (manifest parser, discovery, process manager, hub, security, state).
 - `Packages/`
@@ -80,14 +80,14 @@ This is the "where is everything?" reference for day-to-day development.
 
 ## Frontend UI (what user sees)
 
-- `frontend/src/App.svelte`
+- `Packages/Launchpad/src/App.tsx`
   - root UI shell running as Launchpad directly (no hostui layer).
   - renders Launchpad panel, app iframe stack, settings panel, and context menu.
   - routes iframe `postMessage` SDK calls to Go bridge methods.
   - listens to `packages:event` for live package/frontend refresh.
   - in dev mode, shows a live log panel fed by runtime and package logs.
 
-- `frontend/vite.config.js`
+- `Packages/Launchpad/vite.config.ts`
   - outputs build artifacts to `Packages/Launchpad/dist`.
 
 ## Launchpad package

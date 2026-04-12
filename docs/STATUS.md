@@ -28,20 +28,20 @@ This file tracks implementation maturity in a release-oriented format.
 - `implemented` permission request flow and host-side grant/deny handling
 - `implemented` persisted grants in `Temp/permissions.json`
 - `implemented` default filesystem scoping to package `data/` with external permission gate
-- `in_progress` permission UX policy hardening (revocation UX, rationale/history, richer policy controls)
+- `implemented` permission settings tab (list grants, revoke/clear scope, recent request log, allow/deny modal on `permissions:request`)
 
 ### Frontend
 
 - `implemented` package list + start/stop controls
 - `implemented` event feed for discovery and bridge events
 - `implemented` permission request action controls (allow/deny)
-- `in_progress` robust iframe bridge hardening (strict origin/event policy and safer envelopes)
+- `implemented` iframe bridge v1 (`talos:sdk:v1`, per-instance `bridge_token`, trusted `app_id` from iframe `postMessage` source)
 
 ### SDKs
 
 - `implemented` Go SDK (`sdk/go/talos`) with hub calls and scoped file helpers
-- `in_progress` TypeScript SDK transport parity with Go SDK depth
-- `in_progress` Rust SDK transport parity with Go SDK depth
+- `implemented` TypeScript `IframeBridgeTransport` (v1 bridge + `_talos_bt`)
+- `implemented` Rust gRPC client over UDS (`Client::dial`, hub RPC parity with Go)
 
 ### Tiny App Demos
 
@@ -59,40 +59,24 @@ This file tracks implementation maturity in a release-oriented format.
 
 ### 1) Iframe Bridge Hardening
 
-Intended:
+Follow-ups:
 
-- Safe host-iframe message bus with strict validation, app isolation, and explicit event allowlists.
-
-Needs:
-
-- strict origin checks
-- per-app channel/auth token strategy
-- envelope schema validation and reject logging
-- tighter separation of debug/test events from production channels
+- optional stricter `postMessage` targetOrigin where the runtime exposes a non-null origin
+- optional hub integration test running Talos headless with a real UDS path
 
 ### 2) TS and Rust SDK Runtime Completion
 
-Intended:
+Follow-ups:
 
-- TS and Rust SDKs with near-parity behavior to Go SDK for local IPC and scoped IO flows.
-
-Needs:
-
-- concrete transport implementations (not only baseline wrappers)
-- stable retry/timeout and error normalization
-- integration tests against running Talos host
+- automated integration test in CI with `TALOS_TEST_SOCKET` against `wails dev`
+- optional Node-side gRPC transport for non-iframe TS binaries
 
 ### 3) Permission UX and Policy Completeness
 
-Intended:
+Follow-ups:
 
-- complete permission lifecycle with clear prompts, persistence, and revocation semantics.
-
-Needs:
-
-- revocation UI
-- richer permission metadata/history
-- clearer denied-state UX and retry flows
+- async permission RPC so the first SDK attempt can block until the user answers (currently retry after Allow/Deny)
+- richer audit log export
 
 ### 4) Integration/E2E Validation
 

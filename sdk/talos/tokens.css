@@ -1,0 +1,38 @@
+/* Talos design tokens (default / dark-neutral). Preset themes override these only. */
+:root {
+  --talos-color-bg-primary: #141414;
+  --talos-color-bg-secondary: #222;
+  --talos-color-bg-tertiary: #2a2a2a;
+  --talos-color-bg-surface: #1d1d1d;
+  --talos-color-bg-overlay: rgba(0, 0, 0, 0.35);
+  --talos-color-text-primary: #efefef;
+  --talos-color-text-secondary: #bdbdbd;
+  --talos-color-text-muted: #888;
+  --talos-color-text-accent: #ffcc00;
+  --talos-color-accent: #78a84a;
+  --talos-color-accent-hover: #8fbc5f;
+  --talos-color-accent-glow: rgba(120, 168, 74, 0.35);
+  --talos-color-border: #2e2e2e;
+  --talos-color-sidebar: #111;
+  --talos-radius-sm: 6px;
+  --talos-radius-md: 10px;
+  --talos-radius-lg: 14px;
+  --talos-font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --talos-font-mono: ui-monospace, "Cascadia Code", monospace;
+  --talos-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --talos-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --talos-space-1: 4px;
+  --talos-space-2: 8px;
+  --talos-space-3: 12px;
+  --talos-space-4: 16px;
+  --talos-space-5: 22px;
+  --talos-transition: 200ms ease;
+  --talos-sidebar-width: 68px;
+  --talos-slot-bg: #3a3a3a;
+  --talos-slot-border-light: #666;
+  --talos-slot-border-dark: #222;
+  --talos-slot-hover: #4a4a4a;
+  --talos-slot-size: 86px;
+  --talos-sidebar-icon-size: 40px;
+  --talos-sidebar-active: var(--talos-color-accent);
+}

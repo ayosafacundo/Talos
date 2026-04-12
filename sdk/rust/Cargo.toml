@@ -2,7 +2,19 @@
 name = "talos-sdk"
 version = "0.1.0"
 edition = "2021"
-description = "Talos Tiny App SDK baseline for Rust"
+description = "Talos Tiny App SDK for Rust (gRPC hub over UDS)"
 
 [dependencies]
 anyhow = "1"
+tokio = { version = "1", features = ["net", "rt-multi-thread", "macros"] }
+tonic = { version = "0.12", default-features = false, features = ["transport", "prost", "codegen"] }
+prost = "0.13"
+tower = "0.5"
+http = "1"
+hyper-util = { version = "0.1", features = ["tokio"] }
+
+[build-dependencies]
+tonic-build = "0.12"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["net", "rt-multi-thread", "macros"] }

@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
-  "description": "Talos Tiny App SDK baseline for TypeScript"
+  "description": "Talos Tiny App SDK baseline for TypeScript",
+  "devDependencies": {
+    "typescript": "~5.7.0"
+  }
 }

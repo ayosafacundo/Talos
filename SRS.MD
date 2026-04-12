@@ -16,17 +16,17 @@
 | Component | Technology | Description |
 | :--- | :--- | :--- |
 | **Host Core** | Go (Wails) | Manages lifecycle, windowing, and the gRPC hub. |
-| **Frontend UI** | Svelte | Powers the Sidebar, Launchpad, and Host overlays. |
+| **Frontend UI** | React + Vite (Launchpad in `Packages/Launchpad`) | Powers the Sidebar, Launchpad, and Host overlays. |
 | **Plugin IPC** | gRPC (UDS / Named Pipes) | Fast, local-only communication between Host and Tiny App binaries. |
 | **Isolation** | Iframes | Ensures 100% CSS/JS separation between apps and the Host. |
-| **Persistence** | SQLite / JSON | Host-managed state storage for all plugins. |
+| **Persistence** | In-memory state + JSON grants (SQLite planned for durable plugin state) | Host-managed state storage for all plugins. |
 
 ---
 
 ## 3. UI & Experience (UX)
 
 ### 3.1 The "Fixed-Canvas" Layout
-* **Fixed Window Size:** Talos maintains a set dimension (e.g., 450x700px) that plugins cannot override.
+* **Window Size:** The host window has a default/minimum size configured in Wails (`main.go`); treat exact dimensions as product-configurable rather than fixed unless enforced elsewhere.
 * **The Launchpad:** A grid-based "App Store" overlay where users discover and launch installed packages from `/Packages`.
 * **The Global Toggle:** Configurable in the host settings, defaulting to **`Alt Gr + Tab`**.
 

@@ -1,0 +1,34 @@
+/* Maps legacy Launchpad variable names to Talos tokens (host UI migration). */
+:root {
+  --bg-primary: var(--talos-color-bg-primary);
+  --bg-secondary: var(--talos-color-bg-secondary);
+  --bg-tertiary: var(--talos-color-bg-tertiary);
+  --bg-surface: var(--talos-color-bg-surface);
+  --bg-overlay: var(--talos-color-bg-overlay);
+  --text-primary: var(--talos-color-text-primary);
+  --text-secondary: var(--talos-color-text-secondary);
+  --text-muted: var(--talos-color-text-muted);
+  --text-accent: var(--talos-color-text-accent);
+  --accent-color: var(--talos-color-accent);
+  --accent-hover: var(--talos-color-accent-hover);
+  --accent-glow: var(--talos-color-accent-glow);
+  --border-color: var(--talos-color-border);
+  --sidebar-bg: var(--talos-color-sidebar);
+  --border-radius: var(--talos-radius-md);
+  --font-family: var(--talos-font-sans);
+  --transition-normal: var(--talos-transition);
+  --sidebar-width: var(--talos-sidebar-width);
+  --sidebar-icon-size: var(--talos-sidebar-icon-size);
+  --sidebar-active: var(--talos-sidebar-active);
+  --slot-bg: var(--talos-slot-bg);
+  --slot-border-light: var(--talos-slot-border-light);
+  --slot-border-dark: var(--talos-slot-border-dark);
+  --slot-hover: var(--talos-slot-hover);
+  --slot-size: var(--talos-slot-size);
+  --font-size-xs: 8px;
+  --font-size-sm: 10px;
+  --font-size-md: 12px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --transition-fast: 100ms;
+}

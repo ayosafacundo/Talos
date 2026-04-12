@@ -3,7 +3,7 @@ SHELL := /bin/bash
 GO_BIN := $(shell go env GOPATH)/bin
 PROTO_FILE := api/proto/talos/hub/v1/hub.proto
 
-.PHONY: help install-tools deps proto test build verify tiny-demo-build tiny-demo-clean tiny-ts-demo-build tiny-ts-demo-clean app-build dev
+.PHONY: help install-tools deps proto test build verify tiny-demo-build tiny-demo-clean tiny-ts-demo-build tiny-ts-demo-clean app-build dev talos-sync-css
 
 help:
 	@echo "Available targets:"
@@ -18,6 +18,7 @@ help:
 	@echo "  tiny-ts-demo-clean Remove TypeScript Tiny Demo generated app.js"
 	@echo "  app-build        Build full Talos app and demos"
 	@echo "  dev              Run Talos in development mode"
+	@echo "  talos-sync-css   Copy Talos UI CSS from Launchpad to sdk/talos/"
 
 install-tools:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -26,7 +27,6 @@ install-tools:
 deps:
 	go mod tidy
 	npm --prefix Packages/Launchpad install
-	npm --prefix examples/tinyapps/ts-demo install
 
 proto:
 	PATH="$(GO_BIN):$$PATH" protoc -I . \
@@ -45,11 +45,20 @@ verify: test build
 frontend-build: proto Packages/Launchpad
 	npm --prefix Packages/Launchpad install
 	npm --prefix Packages/Launchpad run build
+	$(MAKE) talos-sync-css
 
+
+talos-sync-css:
+	@mkdir -p sdk/talos
+	cp -f Packages/Launchpad/src/talos/tokens.css Packages/Launchpad/src/talos/legacy-alias.css Packages/Launchpad/src/talos/utilities.css sdk/talos/
 
 app-build: proto frontend-build verify
 	wails build
 
+dev: proto frontend-build
+	rm -rf Temp/logs
+	mkdir -p Temp/logs/packages
+	TALOS_DEV_MODE=1 wails dev
 dev: proto frontend-build
 	rm -rf Temp/logs
 	mkdir -p Temp/logs/packages

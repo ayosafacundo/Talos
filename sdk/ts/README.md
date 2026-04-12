@@ -1,16 +1,22 @@
-# Talos TypeScript SDK (Baseline)
+# Talos TypeScript SDK
 
-This is the Phase 2 baseline wrapper for Tiny Apps written in TypeScript.
+Transport-based client for tiny apps. Use **`IframeBridgeTransport`** inside the Wails iframe: it reads `_talos_bt` from the page URL and sends `talos:sdk:v1` envelopes to the host.
 
-It intentionally uses a transport interface so the app can plug in:
+```ts
+import { TalosClient, IframeBridgeTransport } from "@talos/sdk";
 
-- grpc-web transport
-- Node gRPC transport
-- host bridge transport
+const client = new TalosClient("app.my.id", new IframeBridgeTransport("app.my.id"));
+await client.requestPermission("fs:external", "reason");
+```
 
-## Current API
+See [`docs/build-your-app/05-sdk-and-host-bridge.md`](../../docs/build-your-app/05-sdk-and-host-bridge.md) and [`docs/build-your-app/07-talos-ui-and-themes.md`](../../docs/build-your-app/07-talos-ui-and-themes.md).
 
-- `saveState(data)`
-- `loadState()`
-- `sendMessage(targetID, payload)`
-- `requestPermission(scope, reason?)`
+## API (`TalosClient`)
+
+- `saveState` / `loadState`
+- `sendMessage`
+- `requestPermission`
+- `resolvePath`
+- `setContextMenuOptions` / `clearContextMenuOptions` / `openContextMenu` (when transport supports)
+
+Run `npx tsc -p tsconfig.json` in this folder to typecheck (requires `devDependencies.typescript`).

@@ -46,6 +46,21 @@ func (p *Permissions) Set(appID, scope string, granted bool) {
 	p.grants[appID][scope] = granted
 }
 
+// Clear removes a scope entry so the next Request can prompt again (revocation).
+func (p *Permissions) Clear(appID, scope string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	scopes, ok := p.grants[appID]
+	if !ok {
+		return
+	}
+	delete(scopes, scope)
+	if len(scopes) == 0 {
+		delete(p.grants, appID)
+	}
+}
+
 func (p *Permissions) Export() map[string]map[string]bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()

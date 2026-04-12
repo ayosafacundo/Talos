@@ -51,9 +51,9 @@ Important behavior:
 
 ## 4) Frontend startup sequence
 
-The embedded frontend is built from `frontend/` and bootstraps through `frontend/src/App.svelte`.
+The embedded frontend is built from `Packages/Launchpad/` and bootstraps through `Packages/Launchpad/src/App.tsx`.
 
-In `App.svelte`, startup is:
+In `App.tsx`, startup is:
 
 1. `start()` runs.
 2. `bootstrap()` loads themes and validates launchpad with:

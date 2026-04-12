@@ -19,6 +19,10 @@ For frontend-only apps, use `postMessage` with:
 
 - request type: `talos:sdk:req`
 - response type: `talos:sdk:res`
+- channel: `talos:sdk:v1` (required)
+- `bridge_token`: must match the `_talos_bt` query parameter the host injects when loading your iframe (per-instance secret)
+
+The host binds each iframe `postMessage` to the correct app using the bridge token and the sender window; `app_id` in the envelope must match the running package id.
 
 Methods supported by Launchpad host layer include:
 
@@ -38,11 +42,15 @@ Methods supported by Launchpad host layer include:
 ## Bridge Envelope (Example)
 
 ```js
+const params = new URLSearchParams(window.location.search);
+const bridge_token = params.get("_talos_bt") || "";
 window.parent.postMessage(
   {
+    channel: "talos:sdk:v1",
     type: "talos:sdk:req",
     request_id: crypto.randomUUID(),
     app_id: "app.my.app",
+    bridge_token,
     method: "loadState",
     params: {}
   },

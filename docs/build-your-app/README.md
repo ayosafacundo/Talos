@@ -10,6 +10,7 @@ This documentation explains how to build a Tiny App that runs inside Talos, from
 4. `docs/build-your-app/04-add-a-go-sidecar-binary.md`
 5. `docs/build-your-app/05-sdk-and-host-bridge.md`
 6. `docs/build-your-app/06-dev-loop-and-troubleshooting.md`
+7. `docs/build-your-app/07-talos-ui-and-themes.md`
 
 ## What You Build
 

@@ -115,9 +115,11 @@ make verify
 
 The TypeScript demo uses a host bridge transport:
 
-- Iframe sends `talos:sdk:req` via `postMessage`.
-- Host shell resolves request by calling bound Go methods.
-- Host replies with `talos:sdk:res`.
+- Iframe sends `talos:sdk:req` with `channel: talos:sdk:v1` and `bridge_token` (from `_talos_bt` in the iframe URL).
+- Host shell validates the sender iframe + token, then calls bound Go methods using the trusted manifest id.
+- Host replies with `talos:sdk:res` (same channel).
+
+Use `IframeBridgeTransport` from `@talos/sdk` or mirror the same envelope in plain JS. Styling: copy CSS from [`sdk/talos/`](../sdk/talos/) — see `docs/build-your-app/07-talos-ui-and-themes.md`.
 
 Implemented bridge request methods:
 
@@ -134,4 +136,4 @@ Implemented bridge request methods:
 When Launchpad users select a custom app menu item, the iframe receives:
 
 - message type: `talos:context:action`
-- payload: `{ app_id, action_id }`
+- payload: `{ channel, app_id, action_id, bridge_token }`
