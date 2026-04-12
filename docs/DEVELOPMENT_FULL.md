@@ -110,7 +110,7 @@ Required for discovery/start:
 
 - `manifest.yaml` with valid required fields
 - executable path in `binary` (relative path)
-- package directories as needed: `bin/`, `web/`, `data/`
+- package directories as needed: `bin/`, `dist/`, `data/`
 
 Typical package:
 
@@ -119,7 +119,7 @@ Packages/My App/
 ├── manifest.yaml
 ├── bin/
 ├── data/
-└── web/
+└── dist/
 ```
 
 ## 7) SDKs and Demos

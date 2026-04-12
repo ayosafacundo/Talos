@@ -30,6 +30,9 @@ func (p *Permissions) IsGranted(appID, scope string) bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
+	if p.grants[appID]["*"] {
+		return true
+	}
 	return p.grants[appID][scope]
 }
 

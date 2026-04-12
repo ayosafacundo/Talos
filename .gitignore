@@ -7,8 +7,6 @@
 /lib
 /test-results
 
-Packages/Tiny TS Demo/web/main.js
-
 #cursor
 .cursorignore
 .cursorrules
@@ -23,6 +21,11 @@ frontend/dist
 build/
 Packages/*
 !Packages/.gitkeep
+
+#Packages
+Packages/*
+!Packages/Launchpad/dist
+!Packages/Launchpad/manifest.yaml
 
 #logs and temp files
 *.log

@@ -12,7 +12,7 @@ Packages/My Tiny App/
 ├── bin/
 │   └── my-tiny-app           # built executable
 ├── data/                     # app-scoped persistent files
-└── web/
+└── dist/
     └── index.html            # iframe content
 ```
 
@@ -33,9 +33,9 @@ Recommended full example:
 id: app.my.tiny
 name: My Tiny App
 version: "0.1.0"
-icon: web/icon.png
+icon: dist/icon.gif
 binary: bin/my-tiny-app
-web_entry: web/index.html
+web_entry: dist/index.html
 permissions:
   - fs:external
   - net:internet
@@ -143,7 +143,7 @@ Included TypeScript demo app:
 
 How it works:
 
-1. App runs inside iframe via `web/index.html`.
+1. App runs inside iframe via `dist/index.html`.
 2. TS sends `talos:sdk:req` messages to parent window.
 3. Host resolves request through bound Go APIs.
 4. Host returns `talos:sdk:res`.

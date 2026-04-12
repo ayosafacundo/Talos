@@ -127,3 +127,11 @@ Implemented bridge request methods:
 - `resolvePath`
 - `sendMessage`
 - `broadcast`
+- `setContextMenuOptions`
+- `clearContextMenuOptions`
+- `openContextMenu`
+
+When Launchpad users select a custom app menu item, the iframe receives:
+
+- message type: `talos:context:action`
+- payload: `{ app_id, action_id }`

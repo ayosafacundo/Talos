@@ -3,7 +3,7 @@ SHELL := /bin/bash
 GO_BIN := $(shell go env GOPATH)/bin
 PROTO_FILE := api/proto/talos/hub/v1/hub.proto
 
-.PHONY: help install-tools deps proto test build frontend-build verify tiny-demo-build tiny-demo-clean tiny-ts-demo-build tiny-ts-demo-clean app-build dev
+.PHONY: help install-tools deps proto test build verify tiny-demo-build tiny-demo-clean tiny-ts-demo-build tiny-ts-demo-clean app-build dev
 
 help:
 	@echo "Available targets:"
@@ -11,7 +11,6 @@ help:
 	@echo "  proto          Regenerate protobuf + gRPC stubs"
 	@echo "  test           Run Go tests"
 	@echo "  build          Build Go packages"
-	@echo "  frontend-build Build frontend assets"
 	@echo "  verify         Run all validation checks"
 	@echo "  tiny-demo-build Build Go Tiny Demo package binary"
 	@echo "  tiny-demo-clean Remove Go Tiny Demo built binary"
@@ -26,7 +25,7 @@ install-tools:
 
 deps:
 	go mod tidy
-	npm --prefix frontend install
+	npm --prefix Packages/Launchpad install
 	npm --prefix examples/tinyapps/ts-demo install
 
 proto:
@@ -41,28 +40,17 @@ test:
 build:
 	go build ./...
 
-frontend-build:
-	npm --prefix frontend run build
+verify: test build
 
-verify: test build frontend-build
+frontend-build: proto Packages/Launchpad
+	npm --prefix Packages/Launchpad install
+	npm --prefix Packages/Launchpad run build
 
-tiny-demo-build:
-	mkdir -p "Packages/Tiny Go Demo/bin"
-	go build -o "Packages/Tiny Go Demo/bin/tiny-go-demo" ./examples/tinyapps/go-demo
-	chmod +x "Packages/Tiny Go Demo/bin/tiny-go-demo"
 
-tiny-demo-clean:
-	rm -f "Packages/Tiny Go Demo/bin/tiny-go-demo"
-
-tiny-ts-demo-build:
-	npm --prefix examples/tinyapps/ts-demo install
-	npm --prefix examples/tinyapps/ts-demo run build
-
-tiny-ts-demo-clean:
-	rm -f "Packages/Tiny TS Demo/web/main.js"
-
-app-build: proto tiny-demo-build tiny-ts-demo-build verify
+app-build: proto frontend-build verify
 	wails build
 
-dev: proto tiny-demo-build tiny-ts-demo-build
-	wails dev
+dev: proto frontend-build
+	rm -rf Temp/logs
+	mkdir -p Temp/logs/packages
+	TALOS_DEV_MODE=1 wails dev

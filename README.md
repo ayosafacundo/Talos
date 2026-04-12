@@ -7,6 +7,8 @@ Talos is a local-first desktop host for modular "Tiny Apps", built with Go + Wai
 - Backend + app shell notes: `docs/PHASE1.md`
 - Command workflow and protobuf regeneration: `docs/DEVELOPMENT.md`
 - Full development manual: `docs/DEVELOPMENT_FULL.md`
+- Self-serve dev docs (architecture + startup trace): `docs/dev/README.md`
+- Build-your-own app guide: `docs/build-your-app/README.md`
 - Release-style status tracker: `docs/STATUS.md`
 - Phase 2 readiness plan: `docs/PHASE2_PREP.md`
 - SDK guide: `docs/SDK_GUIDE.md`

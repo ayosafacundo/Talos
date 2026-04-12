@@ -2,10 +2,11 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "Talos",
   "outputfilename": "Talos",
+  "frontend:dir": "Packages/Launchpad",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
-  "frontend:dev:watcher": "npm run dev",
-  "frontend:dev:serverUrl": "auto",
+  "frontend:dev:watcher": "bash ../../scripts/launchpad-devwatch.sh",
+  "frontend:dev:serverUrl": "http://localhost:5173",
   "author": {
     "name": "Facundo Ezequiel Ayosa",
     "email": "ayosafacundo@gmail.com"

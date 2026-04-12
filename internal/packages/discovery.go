@@ -116,7 +116,7 @@ func (d *Discovery) scanAll(watcher *fsnotify.Watcher) error {
 			continue
 		}
 		packageDir := filepath.Join(d.rootDir, entry.Name())
-		if err := watcher.Add(packageDir); err != nil {
+		if err := d.watchPackageTree(watcher, packageDir); err != nil {
 			d.emit(DiscoveryEvent{Type: EventError, Error: fmt.Sprintf("watch %q failed: %v", packageDir, err)})
 		}
 		d.syncPackage(packageDir)
@@ -144,7 +144,7 @@ func (d *Discovery) handleFsEvent(watcher *fsnotify.Watcher, ev fsnotify.Event) 
 	if len(parts) == 1 {
 		if ev.Has(fsnotify.Create) {
 			if isDir(packageDir) {
-				_ = watcher.Add(packageDir)
+				_ = d.watchPackageTree(watcher, packageDir)
 				d.syncPackage(packageDir)
 			}
 			return
@@ -155,10 +155,29 @@ func (d *Discovery) handleFsEvent(watcher *fsnotify.Watcher, ev fsnotify.Event) 
 		}
 	}
 
+	if ev.Has(fsnotify.Create) && isDir(cleanPath) {
+		_ = d.watchPackageTree(watcher, cleanPath)
+	}
+
 	if strings.EqualFold(filepath.Base(cleanPath), manifest.ManifestFileName) ||
 		ev.Has(fsnotify.Create) || ev.Has(fsnotify.Write) || ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename) {
 		d.syncPackage(packageDir)
 	}
+}
+
+func (d *Discovery) watchPackageTree(watcher *fsnotify.Watcher, root string) error {
+	return filepath.WalkDir(root, func(path string, dirEntry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !dirEntry.IsDir() {
+			return nil
+		}
+		if addErr := watcher.Add(path); addErr != nil {
+			d.emit(DiscoveryEvent{Type: EventError, Error: fmt.Sprintf("watch %q failed: %v", path, addErr)})
+		}
+		return nil
+	})
 }
 
 func (d *Discovery) syncPackage(packageDir string) {
@@ -180,6 +199,14 @@ func (d *Discovery) syncPackage(packageDir string) {
 		DirPath:    packageDir,
 		Manifest:   def,
 		ManifestOK: true,
+	}
+	webEntryPath := filepath.Join(packageDir, def.WebEntry)
+	if st, statErr := os.Stat(webEntryPath); statErr != nil || st.IsDir() {
+		d.emit(DiscoveryEvent{
+			Type:  EventError,
+			Error: fmt.Sprintf("required web entry missing for %q: %s", def.ID, webEntryPath),
+		})
+		return
 	}
 
 	removedEvents := make([]DiscoveryEvent, 0, 1)

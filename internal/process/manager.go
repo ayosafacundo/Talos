@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"Talos/internal/packages"
@@ -16,6 +18,7 @@ import (
 type Manager struct {
 	mu      sync.RWMutex
 	running map[string]*exec.Cmd
+	logDir  string
 }
 
 func NewManager() *Manager {
@@ -24,13 +27,26 @@ func NewManager() *Manager {
 	}
 }
 
+func (m *Manager) SetLogDir(logDir string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logDir = logDir
+}
+
 // Start launches a package binary if not already running.
 func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv map[string]string) error {
 	if pkg == nil || pkg.Manifest == nil {
 		return errors.New("process: package manifest is required")
 	}
+	if pkg.Manifest.Binary == "" {
+		// Web-only package: no process lifecycle needed.
+		return nil
+	}
 
 	appID := pkg.Manifest.ID
+	m.mu.RLock()
+	logDir := m.logDir
+	m.mu.RUnlock()
 	m.mu.RLock()
 	if _, ok := m.running[appID]; ok {
 		m.mu.RUnlock()
@@ -49,8 +65,22 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 
 	cmd := exec.CommandContext(ctx, binPath)
 	cmd.Dir = pkg.DirPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	stdoutWriter := io.Writer(os.Stdout)
+	stderrWriter := io.Writer(os.Stderr)
+	var logFile *os.File
+	if strings.TrimSpace(logDir) != "" {
+		if err := os.MkdirAll(logDir, 0o755); err == nil {
+			path := filepath.Join(logDir, appID+".log")
+			f, openErr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+			if openErr == nil {
+				logFile = f
+				stdoutWriter = io.MultiWriter(os.Stdout, f)
+				stderrWriter = io.MultiWriter(os.Stderr, f)
+			}
+		}
+	}
+	cmd.Stdout = stdoutWriter
+	cmd.Stderr = stderrWriter
 	if len(extraEnv) > 0 {
 		env := os.Environ()
 		for key, value := range extraEnv {
@@ -70,6 +100,9 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 
 	go func() {
 		_ = cmd.Wait()
+		if logFile != nil {
+			_ = logFile.Close()
+		}
 		m.mu.Lock()
 		delete(m.running, appID)
 		m.mu.Unlock()

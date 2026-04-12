@@ -14,9 +14,8 @@ import (
 const ManifestFileName = "manifest.yaml"
 
 var (
-	ErrMissingID     = errors.New("manifest: id is required")
-	ErrMissingName   = errors.New("manifest: name is required")
-	ErrMissingBinary = errors.New("manifest: binary is required")
+	ErrMissingID   = errors.New("manifest: id is required")
+	ErrMissingName = errors.New("manifest: name is required")
 )
 
 // Definition captures the expected schema for a package manifest.
@@ -25,7 +24,7 @@ type Definition struct {
 	Name          string   `yaml:"name" json:"name"`
 	Version       string   `yaml:"version,omitempty" json:"version,omitempty"`
 	Icon          string   `yaml:"icon,omitempty" json:"icon,omitempty"`
-	Binary        string   `yaml:"binary" json:"binary"`
+	Binary        string   `yaml:"binary,omitempty" json:"binary,omitempty"`
 	WebEntry      string   `yaml:"web_entry,omitempty" json:"web_entry,omitempty"`
 	Permissions   []string `yaml:"permissions,omitempty" json:"permissions,omitempty"`
 	MultiInstance bool     `yaml:"multi_instance" json:"multi_instance"`
@@ -83,11 +82,17 @@ func (m *Definition) Validate() error {
 	if m.Name == "" {
 		return ErrMissingName
 	}
-	if m.Binary == "" || m.Binary == "." {
-		return ErrMissingBinary
+	if m.Binary == "." {
+		m.Binary = ""
 	}
-	if filepath.IsAbs(m.Binary) {
+	if m.Binary != "" && filepath.IsAbs(m.Binary) {
 		return errors.New("manifest: binary must be a relative path")
+	}
+	if m.WebEntry == "" {
+		m.WebEntry = "dist/index.html"
+	}
+	if filepath.IsAbs(m.WebEntry) {
+		return errors.New("manifest: web_entry must be a relative path")
 	}
 
 	return nil
