@@ -1,0 +1,43 @@
+/* Talos Theme: Light (Minecraft Overworld) */
+:root {
+  --bg-primary: #c6b99d;
+  --bg-secondary: #a89070;
+  --bg-tertiary: #8b7355;
+  --bg-surface: #d4c4a8;
+  --bg-overlay: rgba(198, 185, 157, 0.92);
+
+  --text-primary: #3b3022;
+  --text-secondary: #5a4a38;
+  --text-muted: #8a7a68;
+  --text-accent: #2d6a1e;
+
+  --accent-color: #4a8c3f;
+  --accent-hover: #5ca04f;
+  --accent-glow: rgba(74, 140, 63, 0.3);
+
+  --sidebar-bg: #7a6a52;
+  --sidebar-width: 56px;
+  --sidebar-icon-size: 36px;
+  --sidebar-active: #4a8c3f;
+
+  --slot-bg: #b8a888;
+  --slot-border-light: #d8c8a8;
+  --slot-border-dark: #8a7a5a;
+  --slot-hover: #c8b898;
+
+  --border-radius: 0px;
+  --border-color: #8a7a5a;
+
+  --font-family: 'Minecraft', 'Press Start 2P', monospace;
+  --font-size-xs: 8px;
+  --font-size-sm: 10px;
+  --font-size-md: 12px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  --transition-fast: 100ms;
+  --transition-normal: 200ms;
+
+  --scrollbar-thumb: #8a7a5a;
+  --scrollbar-track: #c6b99d;
+}

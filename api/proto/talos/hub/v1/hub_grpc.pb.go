@@ -19,8 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	HubService_Route_FullMethodName     = "/talos.hub.v1.HubService/Route"
-	HubService_Broadcast_FullMethodName = "/talos.hub.v1.HubService/Broadcast"
+	HubService_Route_FullMethodName             = "/talos.hub.v1.HubService/Route"
+	HubService_Broadcast_FullMethodName         = "/talos.hub.v1.HubService/Broadcast"
+	HubService_SaveState_FullMethodName         = "/talos.hub.v1.HubService/SaveState"
+	HubService_LoadState_FullMethodName         = "/talos.hub.v1.HubService/LoadState"
+	HubService_RequestPermission_FullMethodName = "/talos.hub.v1.HubService/RequestPermission"
+	HubService_ResolvePath_FullMethodName       = "/talos.hub.v1.HubService/ResolvePath"
 )
 
 // HubServiceClient is the client API for HubService service.
@@ -29,6 +33,10 @@ const (
 type HubServiceClient interface {
 	Route(ctx context.Context, in *RouteRequest, opts ...grpc.CallOption) (*RouteResponse, error)
 	Broadcast(ctx context.Context, in *BroadcastRequest, opts ...grpc.CallOption) (*BroadcastResponse, error)
+	SaveState(ctx context.Context, in *SaveStateRequest, opts ...grpc.CallOption) (*SaveStateResponse, error)
+	LoadState(ctx context.Context, in *LoadStateRequest, opts ...grpc.CallOption) (*LoadStateResponse, error)
+	RequestPermission(ctx context.Context, in *PermissionRequest, opts ...grpc.CallOption) (*PermissionResponse, error)
+	ResolvePath(ctx context.Context, in *ResolvePathRequest, opts ...grpc.CallOption) (*ResolvePathResponse, error)
 }
 
 type hubServiceClient struct {
@@ -59,12 +67,56 @@ func (c *hubServiceClient) Broadcast(ctx context.Context, in *BroadcastRequest, 
 	return out, nil
 }
 
+func (c *hubServiceClient) SaveState(ctx context.Context, in *SaveStateRequest, opts ...grpc.CallOption) (*SaveStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SaveStateResponse)
+	err := c.cc.Invoke(ctx, HubService_SaveState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hubServiceClient) LoadState(ctx context.Context, in *LoadStateRequest, opts ...grpc.CallOption) (*LoadStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoadStateResponse)
+	err := c.cc.Invoke(ctx, HubService_LoadState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hubServiceClient) RequestPermission(ctx context.Context, in *PermissionRequest, opts ...grpc.CallOption) (*PermissionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PermissionResponse)
+	err := c.cc.Invoke(ctx, HubService_RequestPermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hubServiceClient) ResolvePath(ctx context.Context, in *ResolvePathRequest, opts ...grpc.CallOption) (*ResolvePathResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolvePathResponse)
+	err := c.cc.Invoke(ctx, HubService_ResolvePath_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HubServiceServer is the server API for HubService service.
 // All implementations must embed UnimplementedHubServiceServer
 // for forward compatibility.
 type HubServiceServer interface {
 	Route(context.Context, *RouteRequest) (*RouteResponse, error)
 	Broadcast(context.Context, *BroadcastRequest) (*BroadcastResponse, error)
+	SaveState(context.Context, *SaveStateRequest) (*SaveStateResponse, error)
+	LoadState(context.Context, *LoadStateRequest) (*LoadStateResponse, error)
+	RequestPermission(context.Context, *PermissionRequest) (*PermissionResponse, error)
+	ResolvePath(context.Context, *ResolvePathRequest) (*ResolvePathResponse, error)
 	mustEmbedUnimplementedHubServiceServer()
 }
 
@@ -80,6 +132,18 @@ func (UnimplementedHubServiceServer) Route(context.Context, *RouteRequest) (*Rou
 }
 func (UnimplementedHubServiceServer) Broadcast(context.Context, *BroadcastRequest) (*BroadcastResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Broadcast not implemented")
+}
+func (UnimplementedHubServiceServer) SaveState(context.Context, *SaveStateRequest) (*SaveStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveState not implemented")
+}
+func (UnimplementedHubServiceServer) LoadState(context.Context, *LoadStateRequest) (*LoadStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LoadState not implemented")
+}
+func (UnimplementedHubServiceServer) RequestPermission(context.Context, *PermissionRequest) (*PermissionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestPermission not implemented")
+}
+func (UnimplementedHubServiceServer) ResolvePath(context.Context, *ResolvePathRequest) (*ResolvePathResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolvePath not implemented")
 }
 func (UnimplementedHubServiceServer) mustEmbedUnimplementedHubServiceServer() {}
 func (UnimplementedHubServiceServer) testEmbeddedByValue()                    {}
@@ -138,6 +202,78 @@ func _HubService_Broadcast_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HubService_SaveState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServiceServer).SaveState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HubService_SaveState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServiceServer).SaveState(ctx, req.(*SaveStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HubService_LoadState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoadStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServiceServer).LoadState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HubService_LoadState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServiceServer).LoadState(ctx, req.(*LoadStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HubService_RequestPermission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PermissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServiceServer).RequestPermission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HubService_RequestPermission_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServiceServer).RequestPermission(ctx, req.(*PermissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HubService_ResolvePath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolvePathRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServiceServer).ResolvePath(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HubService_ResolvePath_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServiceServer).ResolvePath(ctx, req.(*ResolvePathRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HubService_ServiceDesc is the grpc.ServiceDesc for HubService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +288,22 @@ var HubService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Broadcast",
 			Handler:    _HubService_Broadcast_Handler,
+		},
+		{
+			MethodName: "SaveState",
+			Handler:    _HubService_SaveState_Handler,
+		},
+		{
+			MethodName: "LoadState",
+			Handler:    _HubService_LoadState_Handler,
+		},
+		{
+			MethodName: "RequestPermission",
+			Handler:    _HubService_RequestPermission_Handler,
+		},
+		{
+			MethodName: "ResolvePath",
+			Handler:    _HubService_ResolvePath_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

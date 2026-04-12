@@ -29,6 +29,11 @@ type Server struct {
 	handlers  map[string]Handler
 	socketURL string
 
+	stateSaveHook         func(appID string, data []byte) error
+	stateLoadHook         func(appID string) ([]byte, bool, error)
+	permissionRequestHook func(appID, scope, reason string) (bool, string, error)
+	resolvePathHook       func(appID, relativePath string) (string, bool, error)
+
 	grpcServer *grpc.Server
 	listener   net.Listener
 
@@ -103,6 +108,32 @@ func (s *Server) UnregisterHandler(appID string) {
 	delete(s.handlers, appID)
 }
 
+func (s *Server) SetStateHooks(
+	save func(appID string, data []byte) error,
+	load func(appID string) ([]byte, bool, error),
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stateSaveHook = save
+	s.stateLoadHook = load
+}
+
+func (s *Server) SetPermissionRequestHook(
+	hook func(appID, scope, reason string) (bool, string, error),
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.permissionRequestHook = hook
+}
+
+func (s *Server) SetResolvePathHook(
+	hook func(appID, relativePath string) (string, bool, error),
+) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.resolvePathHook = hook
+}
+
 func (s *Server) Route(ctx context.Context, req *hubpb.RouteRequest) (*hubpb.RouteResponse, error) {
 	if req == nil || req.Message == nil {
 		return nil, status.Error(codes.InvalidArgument, "message is required")
@@ -152,6 +183,92 @@ func (s *Server) Broadcast(ctx context.Context, req *hubpb.BroadcastRequest) (*h
 	}
 
 	return &hubpb.BroadcastResponse{RecipientCount: sent}, nil
+}
+
+func (s *Server) SaveState(_ context.Context, req *hubpb.SaveStateRequest) (*hubpb.SaveStateResponse, error) {
+	if req == nil || strings.TrimSpace(req.AppId) == "" {
+		return nil, status.Error(codes.InvalidArgument, "app_id is required")
+	}
+
+	s.mu.RLock()
+	save := s.stateSaveHook
+	s.mu.RUnlock()
+	if save == nil {
+		return &hubpb.SaveStateResponse{Ok: false, Error: "state store is not configured"}, nil
+	}
+
+	if err := save(req.AppId, req.Data); err != nil {
+		return &hubpb.SaveStateResponse{Ok: false, Error: err.Error()}, nil
+	}
+	return &hubpb.SaveStateResponse{Ok: true}, nil
+}
+
+func (s *Server) LoadState(_ context.Context, req *hubpb.LoadStateRequest) (*hubpb.LoadStateResponse, error) {
+	if req == nil || strings.TrimSpace(req.AppId) == "" {
+		return nil, status.Error(codes.InvalidArgument, "app_id is required")
+	}
+
+	s.mu.RLock()
+	load := s.stateLoadHook
+	s.mu.RUnlock()
+	if load == nil {
+		return &hubpb.LoadStateResponse{Found: false, Error: "state store is not configured"}, nil
+	}
+
+	data, found, err := load(req.AppId)
+	if err != nil {
+		return &hubpb.LoadStateResponse{Found: false, Error: err.Error()}, nil
+	}
+
+	return &hubpb.LoadStateResponse{Data: data, Found: found}, nil
+}
+
+func (s *Server) RequestPermission(_ context.Context, req *hubpb.PermissionRequest) (*hubpb.PermissionResponse, error) {
+	if req == nil || strings.TrimSpace(req.AppId) == "" || strings.TrimSpace(req.Scope) == "" {
+		return nil, status.Error(codes.InvalidArgument, "app_id and scope are required")
+	}
+
+	s.mu.RLock()
+	hook := s.permissionRequestHook
+	s.mu.RUnlock()
+	if hook == nil {
+		return &hubpb.PermissionResponse{
+			Granted: false,
+			Message: "permission hook is not configured",
+		}, nil
+	}
+
+	granted, message, err := hook(req.AppId, req.Scope, req.Reason)
+	if err != nil {
+		return &hubpb.PermissionResponse{Granted: false, Message: err.Error()}, nil
+	}
+
+	return &hubpb.PermissionResponse{Granted: granted, Message: message}, nil
+}
+
+func (s *Server) ResolvePath(_ context.Context, req *hubpb.ResolvePathRequest) (*hubpb.ResolvePathResponse, error) {
+	if req == nil || strings.TrimSpace(req.AppId) == "" || strings.TrimSpace(req.RelativePath) == "" {
+		return nil, status.Error(codes.InvalidArgument, "app_id and relative_path are required")
+	}
+
+	s.mu.RLock()
+	hook := s.resolvePathHook
+	s.mu.RUnlock()
+	if hook == nil {
+		return &hubpb.ResolvePathResponse{
+			Allowed: false,
+			Error:   "resolve path hook is not configured",
+		}, nil
+	}
+
+	resolved, allowed, err := hook(req.AppId, req.RelativePath)
+	if err != nil {
+		return &hubpb.ResolvePathResponse{Allowed: false, Error: err.Error()}, nil
+	}
+	return &hubpb.ResolvePathResponse{
+		ResolvedPath: resolved,
+		Allowed:      allowed,
+	}, nil
 }
 
 // DefaultSocketURL returns the platform socket endpoint for the hub.

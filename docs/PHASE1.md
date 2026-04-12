@@ -8,7 +8,7 @@ This document captures what is implemented for Phase 1 and where each component 
 - Wails-bound host API and lifecycle: `app.go`
 - Frontend shell: `frontend/src/App.svelte`
 
-Current window configuration is fixed to `450x700` to align with the Talos SRS.
+Current window configuration is a larger resizable desktop window with minimum size constraints.
 
 ## 2) Package Discovery (`/Packages`)
 

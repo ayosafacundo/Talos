@@ -2,14 +2,40 @@
 .cursorrules
 /.cursor
 /Logs
-/Temp
-/Build
 /out
 /bin
 /lib
 /test-results
 
-*.log
-build/bin
-node_modules
+Packages/Tiny TS Demo/web/main.js
+
+#cursor
+.cursorignore
+.cursorrules
+/.cursor
+
+#frontend
+frontend/*.vscode
+frontend/node_modules
 frontend/dist
+
+#backend
+build/
+Packages/*
+!Packages/.gitkeep
+
+#logs and temp files
+*.log
+/logs/*
+/Logs/*
+/Temp/*
+*.tmp
+
+#build
+bin/
+build/
+
+#examples
+examples/
+
+#wails

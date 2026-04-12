@@ -1,0 +1,43 @@
+/* Talos Theme: Dark (Minecraft Nether) */
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --bg-surface: #1a1a2e;
+  --bg-overlay: rgba(0, 0, 0, 0.85);
+
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666;
+  --text-accent: #ffcc00;
+
+  --accent-color: #e94560;
+  --accent-hover: #ff6b6b;
+  --accent-glow: rgba(233, 69, 96, 0.3);
+
+  --sidebar-bg: #111;
+  --sidebar-width: 56px;
+  --sidebar-icon-size: 36px;
+  --sidebar-active: #e94560;
+
+  --slot-bg: #2a2a3e;
+  --slot-border-light: #4a4a5e;
+  --slot-border-dark: #0a0a1e;
+  --slot-hover: #3a3a4e;
+
+  --border-radius: 0px;
+  --border-color: #333;
+
+  --font-family: 'Minecraft', 'Press Start 2P', monospace;
+  --font-size-xs: 8px;
+  --font-size-sm: 10px;
+  --font-size-md: 12px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  --transition-fast: 100ms;
+  --transition-normal: 200ms;
+
+  --scrollbar-thumb: #444;
+  --scrollbar-track: #1a1a2e;
+}

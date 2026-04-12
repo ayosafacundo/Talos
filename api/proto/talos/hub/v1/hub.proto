@@ -29,7 +29,53 @@ message BroadcastResponse {
   int32 recipient_count = 1;
 }
 
+message SaveStateRequest {
+  string app_id = 1;
+  bytes data = 2;
+}
+
+message SaveStateResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
+message LoadStateRequest {
+  string app_id = 1;
+}
+
+message LoadStateResponse {
+  bytes data = 1;
+  bool found = 2;
+  string error = 3;
+}
+
+message PermissionRequest {
+  string app_id = 1;
+  string scope = 2;
+  string reason = 3;
+}
+
+message PermissionResponse {
+  bool granted = 1;
+  string message = 2;
+}
+
+message ResolvePathRequest {
+  string app_id = 1;
+  string relative_path = 2;
+}
+
+message ResolvePathResponse {
+  string resolved_path = 1;
+  bool allowed = 2;
+  string error = 3;
+}
+
 service HubService {
   rpc Route(RouteRequest) returns (RouteResponse);
   rpc Broadcast(BroadcastRequest) returns (BroadcastResponse);
+  rpc SaveState(SaveStateRequest) returns (SaveStateResponse);
+  rpc LoadState(LoadStateRequest) returns (LoadStateResponse);
+  rpc RequestPermission(PermissionRequest) returns (PermissionResponse);
+  rpc ResolvePath(ResolvePathRequest) returns (ResolvePathResponse);
 }

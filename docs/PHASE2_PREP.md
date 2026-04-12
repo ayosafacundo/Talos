@@ -1,6 +1,6 @@
-# Phase 2 Readiness Plan (No Implementation Yet)
+# Phase 2 Plan and Progress
 
-This document prepares the codebase for Phase 2 execution without starting feature work.
+This document started as readiness planning and now tracks Phase 2 execution progress.
 
 ## Goal
 
@@ -15,15 +15,14 @@ Phase 2 introduces the Talos SDK and runtime enforcement surfaces:
 What is included now:
 
 - Interface and sequencing decisions
-- Data contracts to implement next
+- Data contracts
 - Delivery checklist and test strategy
+- Progress snapshots for Phase 2 implementation
 
-What is explicitly not included now:
+What is not fully complete yet:
 
-- SDK code
-- Permission gate implementation
-- Iframe bridge implementation
-- FS enforcement logic
+- Full Rust and TS gRPC transport implementations
+- Production-grade iframe policy/allowlist hardening
 
 ## Proposed Deliverable Order
 
@@ -88,16 +87,33 @@ What is explicitly not included now:
 - E2E:
   - iframe-host bridge event flow with at least one sample tiny app
 
-## Entry Criteria to Start Phase 2
+## Phase 2 Start Criteria
 
-- [ ] Proto contract draft reviewed
-- [ ] Permission semantics agreed
-- [ ] SDK package structure approved
-- [ ] Bridge event schema approved
+- [x] Proto contract draft reviewed
+- [x] Permission semantics agreed (initial in-memory model)
+- [x] SDK package structure approved
+- [x] Bridge event schema approved (initial)
 
 ## Exit Criteria for Phase 2
 
-- [ ] Go SDK usable by a tiny app demo
-- [ ] TS and Rust SDK baselines generated and documented
-- [ ] FS scoping enforcement validated with deny-by-default tests
+- [x] Go SDK usable by a tiny app demo
+- [x] TS and Rust SDK baselines generated and documented
+- [x] FS scoping enforcement validated with deny-by-default tests
 - [ ] Iframe bridge passes host-app message exchange tests
+
+## Progress Snapshot
+
+- [x] Hub proto expanded with `SaveState`, `LoadState`, `RequestPermission`.
+- [x] Generated Go gRPC stubs regenerated with `protoc`.
+- [x] Host-side in-memory state store added.
+- [x] Host-side permission service + request flow added.
+- [x] Permission grants persisted to `Temp/permissions.json`.
+- [x] FS scope manager added with deny-by-default behavior outside `data/`.
+- [x] Hub `ResolvePath` RPC added for host-validated path resolution.
+- [x] Go SDK wrapper added in `sdk/go/talos`.
+- [x] TS SDK baseline wrapper added in `sdk/ts`.
+- [x] Rust SDK baseline wrapper added in `sdk/rust`.
+- [x] Initial Wails <-> iframe bridge event flow wired in host/frontend.
+- [x] Go tiny app demo implemented in `examples/tinyapps/go-demo`.
+- [x] TypeScript tiny app iframe demo implemented in `examples/tinyapps/ts-demo`.
+- [x] SDK and tiny-app initialization docs added.

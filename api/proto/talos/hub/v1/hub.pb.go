@@ -281,6 +281,438 @@ func (x *BroadcastResponse) GetRecipientCount() int32 {
 	return 0
 }
 
+type SaveStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AppId         string                 `protobuf:"bytes,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveStateRequest) Reset() {
+	*x = SaveStateRequest{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveStateRequest) ProtoMessage() {}
+
+func (x *SaveStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveStateRequest.ProtoReflect.Descriptor instead.
+func (*SaveStateRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SaveStateRequest) GetAppId() string {
+	if x != nil {
+		return x.AppId
+	}
+	return ""
+}
+
+func (x *SaveStateRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type SaveStateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveStateResponse) Reset() {
+	*x = SaveStateResponse{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveStateResponse) ProtoMessage() {}
+
+func (x *SaveStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveStateResponse.ProtoReflect.Descriptor instead.
+func (*SaveStateResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SaveStateResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *SaveStateResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type LoadStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AppId         string                 `protobuf:"bytes,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoadStateRequest) Reset() {
+	*x = LoadStateRequest{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoadStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoadStateRequest) ProtoMessage() {}
+
+func (x *LoadStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoadStateRequest.ProtoReflect.Descriptor instead.
+func (*LoadStateRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *LoadStateRequest) GetAppId() string {
+	if x != nil {
+		return x.AppId
+	}
+	return ""
+}
+
+type LoadStateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Found         bool                   `protobuf:"varint,2,opt,name=found,proto3" json:"found,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoadStateResponse) Reset() {
+	*x = LoadStateResponse{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoadStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoadStateResponse) ProtoMessage() {}
+
+func (x *LoadStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoadStateResponse.ProtoReflect.Descriptor instead.
+func (*LoadStateResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *LoadStateResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *LoadStateResponse) GetFound() bool {
+	if x != nil {
+		return x.Found
+	}
+	return false
+}
+
+func (x *LoadStateResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type PermissionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AppId         string                 `protobuf:"bytes,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermissionRequest) Reset() {
+	*x = PermissionRequest{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermissionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermissionRequest) ProtoMessage() {}
+
+func (x *PermissionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermissionRequest.ProtoReflect.Descriptor instead.
+func (*PermissionRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PermissionRequest) GetAppId() string {
+	if x != nil {
+		return x.AppId
+	}
+	return ""
+}
+
+func (x *PermissionRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *PermissionRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type PermissionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Granted       bool                   `protobuf:"varint,1,opt,name=granted,proto3" json:"granted,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermissionResponse) Reset() {
+	*x = PermissionResponse{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermissionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermissionResponse) ProtoMessage() {}
+
+func (x *PermissionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermissionResponse.ProtoReflect.Descriptor instead.
+func (*PermissionResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PermissionResponse) GetGranted() bool {
+	if x != nil {
+		return x.Granted
+	}
+	return false
+}
+
+func (x *PermissionResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type ResolvePathRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AppId         string                 `protobuf:"bytes,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	RelativePath  string                 `protobuf:"bytes,2,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolvePathRequest) Reset() {
+	*x = ResolvePathRequest{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolvePathRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolvePathRequest) ProtoMessage() {}
+
+func (x *ResolvePathRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolvePathRequest.ProtoReflect.Descriptor instead.
+func (*ResolvePathRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ResolvePathRequest) GetAppId() string {
+	if x != nil {
+		return x.AppId
+	}
+	return ""
+}
+
+func (x *ResolvePathRequest) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
+	}
+	return ""
+}
+
+type ResolvePathResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ResolvedPath  string                 `protobuf:"bytes,1,opt,name=resolved_path,json=resolvedPath,proto3" json:"resolved_path,omitempty"`
+	Allowed       bool                   `protobuf:"varint,2,opt,name=allowed,proto3" json:"allowed,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolvePathResponse) Reset() {
+	*x = ResolvePathResponse{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolvePathResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolvePathResponse) ProtoMessage() {}
+
+func (x *ResolvePathResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolvePathResponse.ProtoReflect.Descriptor instead.
+func (*ResolvePathResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ResolvePathResponse) GetResolvedPath() string {
+	if x != nil {
+		return x.ResolvedPath
+	}
+	return ""
+}
+
+func (x *ResolvePathResponse) GetAllowed() bool {
+	if x != nil {
+		return x.Allowed
+	}
+	return false
+}
+
+func (x *ResolvePathResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_api_proto_talos_hub_v1_hub_proto protoreflect.FileDescriptor
 
 const file_api_proto_talos_hub_v1_hub_proto_rawDesc = "" +
@@ -301,11 +733,41 @@ const file_api_proto_talos_hub_v1_hub_proto_rawDesc = "" +
 	"\x10BroadcastRequest\x12/\n" +
 	"\amessage\x18\x01 \x01(\v2\x15.talos.hub.v1.MessageR\amessage\"<\n" +
 	"\x11BroadcastResponse\x12'\n" +
-	"\x0frecipient_count\x18\x01 \x01(\x05R\x0erecipientCount2\x9c\x01\n" +
+	"\x0frecipient_count\x18\x01 \x01(\x05R\x0erecipientCount\"=\n" +
+	"\x10SaveStateRequest\x12\x15\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"9\n" +
+	"\x11SaveStateResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\")\n" +
+	"\x10LoadStateRequest\x12\x15\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\"S\n" +
+	"\x11LoadStateResponse\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x14\n" +
+	"\x05found\x18\x02 \x01(\bR\x05found\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"X\n" +
+	"\x11PermissionRequest\x12\x15\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"H\n" +
+	"\x12PermissionResponse\x12\x18\n" +
+	"\agranted\x18\x01 \x01(\bR\agranted\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"P\n" +
+	"\x12ResolvePathRequest\x12\x15\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12#\n" +
+	"\rrelative_path\x18\x02 \x01(\tR\frelativePath\"j\n" +
+	"\x13ResolvePathResponse\x12#\n" +
+	"\rresolved_path\x18\x01 \x01(\tR\fresolvedPath\x12\x18\n" +
+	"\aallowed\x18\x02 \x01(\bR\aallowed\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\xe4\x03\n" +
 	"\n" +
 	"HubService\x12@\n" +
 	"\x05Route\x12\x1a.talos.hub.v1.RouteRequest\x1a\x1b.talos.hub.v1.RouteResponse\x12L\n" +
-	"\tBroadcast\x12\x1e.talos.hub.v1.BroadcastRequest\x1a\x1f.talos.hub.v1.BroadcastResponseB$Z\"Talos/api/proto/talos/hub/v1;hubpbb\x06proto3"
+	"\tBroadcast\x12\x1e.talos.hub.v1.BroadcastRequest\x1a\x1f.talos.hub.v1.BroadcastResponse\x12L\n" +
+	"\tSaveState\x12\x1e.talos.hub.v1.SaveStateRequest\x1a\x1f.talos.hub.v1.SaveStateResponse\x12L\n" +
+	"\tLoadState\x12\x1e.talos.hub.v1.LoadStateRequest\x1a\x1f.talos.hub.v1.LoadStateResponse\x12V\n" +
+	"\x11RequestPermission\x12\x1f.talos.hub.v1.PermissionRequest\x1a .talos.hub.v1.PermissionResponse\x12R\n" +
+	"\vResolvePath\x12 .talos.hub.v1.ResolvePathRequest\x1a!.talos.hub.v1.ResolvePathResponseB$Z\"Talos/api/proto/talos/hub/v1;hubpbb\x06proto3"
 
 var (
 	file_api_proto_talos_hub_v1_hub_proto_rawDescOnce sync.Once
@@ -319,27 +781,43 @@ func file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP() []byte {
 	return file_api_proto_talos_hub_v1_hub_proto_rawDescData
 }
 
-var file_api_proto_talos_hub_v1_hub_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_api_proto_talos_hub_v1_hub_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_api_proto_talos_hub_v1_hub_proto_goTypes = []any{
-	(*Message)(nil),           // 0: talos.hub.v1.Message
-	(*RouteRequest)(nil),      // 1: talos.hub.v1.RouteRequest
-	(*RouteResponse)(nil),     // 2: talos.hub.v1.RouteResponse
-	(*BroadcastRequest)(nil),  // 3: talos.hub.v1.BroadcastRequest
-	(*BroadcastResponse)(nil), // 4: talos.hub.v1.BroadcastResponse
+	(*Message)(nil),             // 0: talos.hub.v1.Message
+	(*RouteRequest)(nil),        // 1: talos.hub.v1.RouteRequest
+	(*RouteResponse)(nil),       // 2: talos.hub.v1.RouteResponse
+	(*BroadcastRequest)(nil),    // 3: talos.hub.v1.BroadcastRequest
+	(*BroadcastResponse)(nil),   // 4: talos.hub.v1.BroadcastResponse
+	(*SaveStateRequest)(nil),    // 5: talos.hub.v1.SaveStateRequest
+	(*SaveStateResponse)(nil),   // 6: talos.hub.v1.SaveStateResponse
+	(*LoadStateRequest)(nil),    // 7: talos.hub.v1.LoadStateRequest
+	(*LoadStateResponse)(nil),   // 8: talos.hub.v1.LoadStateResponse
+	(*PermissionRequest)(nil),   // 9: talos.hub.v1.PermissionRequest
+	(*PermissionResponse)(nil),  // 10: talos.hub.v1.PermissionResponse
+	(*ResolvePathRequest)(nil),  // 11: talos.hub.v1.ResolvePathRequest
+	(*ResolvePathResponse)(nil), // 12: talos.hub.v1.ResolvePathResponse
 }
 var file_api_proto_talos_hub_v1_hub_proto_depIdxs = []int32{
-	0, // 0: talos.hub.v1.RouteRequest.message:type_name -> talos.hub.v1.Message
-	0, // 1: talos.hub.v1.RouteResponse.message:type_name -> talos.hub.v1.Message
-	0, // 2: talos.hub.v1.BroadcastRequest.message:type_name -> talos.hub.v1.Message
-	1, // 3: talos.hub.v1.HubService.Route:input_type -> talos.hub.v1.RouteRequest
-	3, // 4: talos.hub.v1.HubService.Broadcast:input_type -> talos.hub.v1.BroadcastRequest
-	2, // 5: talos.hub.v1.HubService.Route:output_type -> talos.hub.v1.RouteResponse
-	4, // 6: talos.hub.v1.HubService.Broadcast:output_type -> talos.hub.v1.BroadcastResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: talos.hub.v1.RouteRequest.message:type_name -> talos.hub.v1.Message
+	0,  // 1: talos.hub.v1.RouteResponse.message:type_name -> talos.hub.v1.Message
+	0,  // 2: talos.hub.v1.BroadcastRequest.message:type_name -> talos.hub.v1.Message
+	1,  // 3: talos.hub.v1.HubService.Route:input_type -> talos.hub.v1.RouteRequest
+	3,  // 4: talos.hub.v1.HubService.Broadcast:input_type -> talos.hub.v1.BroadcastRequest
+	5,  // 5: talos.hub.v1.HubService.SaveState:input_type -> talos.hub.v1.SaveStateRequest
+	7,  // 6: talos.hub.v1.HubService.LoadState:input_type -> talos.hub.v1.LoadStateRequest
+	9,  // 7: talos.hub.v1.HubService.RequestPermission:input_type -> talos.hub.v1.PermissionRequest
+	11, // 8: talos.hub.v1.HubService.ResolvePath:input_type -> talos.hub.v1.ResolvePathRequest
+	2,  // 9: talos.hub.v1.HubService.Route:output_type -> talos.hub.v1.RouteResponse
+	4,  // 10: talos.hub.v1.HubService.Broadcast:output_type -> talos.hub.v1.BroadcastResponse
+	6,  // 11: talos.hub.v1.HubService.SaveState:output_type -> talos.hub.v1.SaveStateResponse
+	8,  // 12: talos.hub.v1.HubService.LoadState:output_type -> talos.hub.v1.LoadStateResponse
+	10, // 13: talos.hub.v1.HubService.RequestPermission:output_type -> talos.hub.v1.PermissionResponse
+	12, // 14: talos.hub.v1.HubService.ResolvePath:output_type -> talos.hub.v1.ResolvePathResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_talos_hub_v1_hub_proto_init() }
@@ -353,7 +831,7 @@ func file_api_proto_talos_hub_v1_hub_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_talos_hub_v1_hub_proto_rawDesc), len(file_api_proto_talos_hub_v1_hub_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

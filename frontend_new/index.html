@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Talos Dashboard</title>
+  <meta name="description" content="Talos - Secure App Wrapper Dashboard with Minecraft-themed UI" />
+  <link rel="stylesheet" href="variables.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="talos-shell">
+
+    <!-- ═══════════ SIDEBAR ═══════════ -->
+    <nav class="sidebar" aria-label="App navigation">
+      <!-- Launchpad toggle -->
+      <button class="sidebar-icon launchpad-btn active" title="Launchpad" data-action="launchpad">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+        </svg>
+      </button>
+
+      <!-- Instance tabs -->
+      <div class="sidebar-tabs">
+        <button class="sidebar-icon tab" title="Discord" data-app-id="discord">
+          <span class="tab-indicator"></span>
+          <img src="https://cdn.simpleicons.org/discord/white" alt="Discord" width="22" height="22" />
+        </button>
+        <button class="sidebar-icon tab" title="Spotify" data-app-id="spotify">
+          <img src="https://cdn.simpleicons.org/spotify/white" alt="Spotify" width="22" height="22" />
+        </button>
+        <button class="sidebar-icon tab" title="Notes" data-app-id="notes">
+          <img src="https://cdn.simpleicons.org/notion/white" alt="Notes" width="22" height="22" />
+        </button>
+      </div>
+
+      <!-- Settings (pinned bottom) -->
+      <button class="sidebar-icon settings-btn" title="Settings" data-action="settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.6-6.4-1.4 1.4M6.4 17.6 5 19M19 19l-1.4-1.4M6.4 6.4 5 5"/>
+        </svg>
+      </button>
+    </nav>
+
+    <!-- ═══════════ VIEWPORT ═══════════ -->
+    <main class="viewport">
+
+      <!-- Launchpad (always in DOM, toggled via visibility) -->
+      <div class="launchpad visible" id="launchpad">
+        <div class="launchpad-inner">
+          <h1 class="launchpad-title">Talos</h1>
+
+          <!-- Installed Section -->
+          <section class="launchpad-section">
+            <h2 class="section-title">Installed</h2>
+            <div class="inventory-grid">
+
+              <button class="slot filled" data-app="discord">
+                <img src="https://cdn.simpleicons.org/discord/white" alt="" width="32" height="32" />
+                <span class="slot-label">Discord</span>
+                <span class="slot-desc">Chat & voice</span>
+              </button>
+
+              <button class="slot filled" data-app="spotify">
+                <img src="https://cdn.simpleicons.org/spotify/1DB954" alt="" width="32" height="32" />
+                <span class="slot-label">Spotify</span>
+                <span class="slot-desc">Music player</span>
+              </button>
+
+              <button class="slot filled" data-app="notes">
+                <img src="https://cdn.simpleicons.org/notion/white" alt="" width="32" height="32" />
+                <span class="slot-label">Notes</span>
+                <span class="slot-desc">Quick notes</span>
+              </button>
+
+              <button class="slot filled" data-app="browser">
+                <img src="https://cdn.simpleicons.org/googlechrome/white" alt="" width="32" height="32" />
+                <span class="slot-label">Browser</span>
+                <span class="slot-desc">Web browser</span>
+              </button>
+
+              <button class="slot filled" data-app="terminal">
+                <img src="https://cdn.simpleicons.org/windowsterminal/white" alt="" width="32" height="32" />
+                <span class="slot-label">Terminal</span>
+                <span class="slot-desc">Shell access</span>
+              </button>
+
+              <button class="slot filled" data-app="files">
+                <img src="https://cdn.simpleicons.org/files/white" alt="" width="32" height="32" />
+                <span class="slot-label">Files</span>
+                <span class="slot-desc">File manager</span>
+              </button>
+
+              <!-- Empty slots for Minecraft inventory feel -->
+              <div class="slot empty"></div>
+              <div class="slot empty"></div>
+              <div class="slot empty"></div>
+            </div>
+          </section>
+
+          <!-- Store Section -->
+          <section class="launchpad-section">
+            <h2 class="section-title">Store</h2>
+            <div class="store-carousel">
+              <div class="store-track">
+
+                <a href="#" class="store-card">
+                  <div class="store-card-icon">
+                    <img src="https://cdn.simpleicons.org/slack/white" alt="" width="36" height="36" />
+                  </div>
+                  <div class="store-card-info">
+                    <span class="store-card-name">Slack</span>
+                    <span class="store-card-desc">Team messaging & collaboration platform</span>
+                  </div>
+                  <span class="store-card-badge">Free</span>
+                </a>
+
+                <a href="#" class="store-card">
+                  <div class="store-card-icon">
+                    <img src="https://cdn.simpleicons.org/figma/white" alt="" width="36" height="36" />
+                  </div>
+                  <div class="store-card-info">
+                    <span class="store-card-name">Figma</span>
+                    <span class="store-card-desc">Design & prototyping tool</span>
+                  </div>
+                  <span class="store-card-badge">Free</span>
+                </a>
+
+                <a href="#" class="store-card">
+                  <div class="store-card-icon">
+                    <img src="https://cdn.simpleicons.org/visualstudiocode/white" alt="" width="36" height="36" />
+                  </div>
+                  <div class="store-card-info">
+                    <span class="store-card-name">VS Code</span>
+                    <span class="store-card-desc">Code editor with extensions</span>
+                  </div>
+                  <span class="store-card-badge">Free</span>
+                </a>
+
+                <a href="#" class="store-card">
+                  <div class="store-card-icon">
+                    <img src="https://cdn.simpleicons.org/obsidian/white" alt="" width="36" height="36" />
+                  </div>
+                  <div class="store-card-info">
+                    <span class="store-card-name">Obsidian</span>
+                    <span class="store-card-desc">Knowledge base & markdown notes</span>
+                  </div>
+                  <span class="store-card-badge">$9</span>
+                </a>
+
+                <a href="#" class="store-card">
+                  <div class="store-card-icon">
+                    <img src="https://cdn.simpleicons.org/telegram/white" alt="" width="36" height="36" />
+                  </div>
+                  <div class="store-card-info">
+                    <span class="store-card-name">Telegram</span>
+                    <span class="store-card-desc">Secure messaging app</span>
+                  </div>
+                  <span class="store-card-badge">Free</span>
+                </a>
+
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Settings Panel (hidden by default) -->
+      <div class="settings-panel" id="settings">
+        <div class="settings-inner">
+          <!-- Settings top nav -->
+          <nav class="settings-nav">
+            <button class="settings-nav-btn active" data-tab="themes">Themes</button>
+            <button class="settings-nav-btn" data-tab="components">Components</button>
+            <button class="settings-nav-btn" data-tab="about">About</button>
+          </nav>
+
+          <!-- Themes tab -->
+          <div class="settings-tab active" id="tab-themes">
+            <h2 class="section-title">Installed Themes</h2>
+            <div class="theme-grid">
+              <button class="theme-card active">
+                <div class="theme-preview" style="background:#2d2d2d;">
+                  <div class="theme-preview-sidebar" style="background:#1a1a1a;"></div>
+                  <div class="theme-preview-accent" style="background:#5b8731;"></div>
+                </div>
+                <span class="theme-name">Default</span>
+              </button>
+              <button class="theme-card">
+                <div class="theme-preview" style="background:#1a1a2e;">
+                  <div class="theme-preview-sidebar" style="background:#111;"></div>
+                  <div class="theme-preview-accent" style="background:#e94560;"></div>
+                </div>
+                <span class="theme-name">Nether</span>
+              </button>
+              <button class="theme-card">
+                <div class="theme-preview" style="background:#c6b99d;">
+                  <div class="theme-preview-sidebar" style="background:#7a6a52;"></div>
+                  <div class="theme-preview-accent" style="background:#4a8c3f;"></div>
+                </div>
+                <span class="theme-name">Overworld</span>
+              </button>
+            </div>
+
+            <h2 class="section-title" style="margin-top:24px;">CSS Variables</h2>
+            <div class="var-list">
+              <div class="var-row"><code>--bg-primary</code><span class="var-swatch" style="background:var(--bg-primary);"></span></div>
+              <div class="var-row"><code>--bg-secondary</code><span class="var-swatch" style="background:var(--bg-secondary);"></span></div>
+              <div class="var-row"><code>--accent-color</code><span class="var-swatch" style="background:var(--accent-color);"></span></div>
+              <div class="var-row"><code>--text-primary</code><span class="var-swatch" style="background:var(--text-primary);"></span></div>
+              <div class="var-row"><code>--slot-bg</code><span class="var-swatch" style="background:var(--slot-bg);"></span></div>
+              <div class="var-row"><code>--sidebar-bg</code><span class="var-swatch" style="background:var(--sidebar-bg);"></span></div>
+            </div>
+          </div>
+
+          <!-- Components tab -->
+          <div class="settings-tab" id="tab-components">
+            <h2 class="section-title">Component Showcase</h2>
+
+            <h3 class="showcase-label">Buttons</h3>
+            <div class="showcase-row">
+              <button class="mc-btn primary">Primary</button>
+              <button class="mc-btn secondary">Secondary</button>
+              <button class="mc-btn danger">Danger</button>
+              <button class="mc-btn" disabled>Disabled</button>
+            </div>
+
+            <h3 class="showcase-label">Inventory Slots</h3>
+            <div class="showcase-row">
+              <div class="slot filled"><img src="https://cdn.simpleicons.org/discord/white" alt="" width="32" height="32"/></div>
+              <div class="slot empty"></div>
+              <div class="slot empty"></div>
+            </div>
+
+            <h3 class="showcase-label">Sidebar Icons</h3>
+            <div class="showcase-row">
+              <div class="sidebar-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+              <div class="sidebar-icon tab"><span class="tab-indicator"></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+            </div>
+
+            <h3 class="showcase-label">Store Card</h3>
+            <div class="showcase-row">
+              <a href="#" class="store-card" style="flex-shrink:0;">
+                <div class="store-card-icon"><img src="https://cdn.simpleicons.org/github/white" alt="" width="36" height="36"/></div>
+                <div class="store-card-info"><span class="store-card-name">GitHub</span><span class="store-card-desc">Code hosting</span></div>
+                <span class="store-card-badge">Free</span>
+              </a>
+            </div>
+
+            <h3 class="showcase-label">Typography</h3>
+            <div class="showcase-col">
+              <span style="font-size:var(--font-size-xl);">Heading XL</span>
+              <span style="font-size:var(--font-size-lg);">Heading LG</span>
+              <span style="font-size:var(--font-size-md);">Body MD</span>
+              <span style="font-size:var(--font-size-sm);color:var(--text-secondary);">Caption SM</span>
+              <span style="font-size:var(--font-size-xs);color:var(--text-muted);">Tiny XS</span>
+            </div>
+          </div>
+
+          <!-- About tab -->
+          <div class="settings-tab" id="tab-about">
+            <h2 class="section-title">About Talos</h2>
+            <p style="font-size:var(--font-size-sm);line-height:1.8;color:var(--text-secondary);max-width:500px;">
+              Talos is a secure app wrapper that lets you run multiple web apps in isolated iframes with a unified, themeable interface. Built for desktop with Wails + Svelte 5.
+            </p>
+            <p style="font-size:var(--font-size-xs);color:var(--text-muted);margin-top:16px;">Version 0.1.0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Iframe Stack (apps loaded here, never unmounted) -->
+      <div class="iframe-stack" id="iframe-stack">
+        <!-- Example: iframes toggled via display:none -->
+        <!-- <iframe src="..." data-app-id="discord" class="app-frame active"></iframe> -->
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Context menu (right-click on tabs) -->
+  <div class="context-menu" id="context-menu">
+    <button class="context-item" data-action="color-red">🔴 Red</button>
+    <button class="context-item" data-action="color-blue">🔵 Blue</button>
+    <button class="context-item" data-action="color-green">🟢 Green</button>
+    <button class="context-item" data-action="color-yellow">🟡 Yellow</button>
+    <div class="context-separator"></div>
+    <button class="context-item" data-action="close">✕ Close App</button>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

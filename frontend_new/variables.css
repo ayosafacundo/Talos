@@ -1,0 +1,61 @@
+/* ============================================
+   TALOS DESIGN SYSTEM - Core CSS Variables
+   ============================================
+   All UI components reference these variables.
+   Swap theme files to retheme the entire app.
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+  /* ── Background Layers ── */
+  --bg-primary: #2d2d2d;
+  --bg-secondary: #3d3d3d;
+  --bg-tertiary: #4d4d4d;
+  --bg-surface: #373737;
+  --bg-overlay: rgba(0, 0, 0, 0.8);
+
+  /* ── Typography ── */
+  --text-primary: #d4d4d4;
+  --text-secondary: #aaa;
+  --text-muted: #777;
+  --text-accent: #ffcc00;
+
+  /* ── Accent / Brand ── */
+  --accent-color: #5b8731;
+  --accent-hover: #6da03a;
+  --accent-glow: rgba(91, 135, 49, 0.4);
+
+  /* ── Sidebar ── */
+  --sidebar-bg: #1a1a1a;
+  --sidebar-width: 56px;
+  --sidebar-icon-size: 36px;
+  --sidebar-active: #5b8731;
+
+  /* ── Inventory Slot (Minecraft-style) ── */
+  --slot-bg: #8b8b8b;
+  --slot-border-light: #c6c6c6;
+  --slot-border-dark: #373737;
+  --slot-hover: #a0a0a0;
+  --slot-size: 64px;
+
+  /* ── General ── */
+  --border-radius: 0px;
+  --border-color: #555;
+
+  /* ── Font ── */
+  --font-family: 'Press Start 2P', monospace;
+  --font-size-xs: 8px;
+  --font-size-sm: 10px;
+  --font-size-md: 12px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  /* ── Motion ── */
+  --transition-fast: 100ms;
+  --transition-normal: 200ms;
+
+  /* ── Scrollbar ── */
+  --scrollbar-thumb: #555;
+  --scrollbar-track: #2d2d2d;
+}

@@ -25,7 +25,7 @@ func NewManager() *Manager {
 }
 
 // Start launches a package binary if not already running.
-func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo) error {
+func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv map[string]string) error {
 	if pkg == nil || pkg.Manifest == nil {
 		return errors.New("process: package manifest is required")
 	}
@@ -51,6 +51,13 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo) error {
 	cmd.Dir = pkg.DirPath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if len(extraEnv) > 0 {
+		env := os.Environ()
+		for key, value := range extraEnv {
+			env = append(env, key+"="+value)
+		}
+		cmd.Env = env
+	}
 	configureCmd(cmd)
 
 	if err := cmd.Start(); err != nil {

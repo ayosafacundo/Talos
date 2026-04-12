@@ -2,6 +2,8 @@
 
 This file documents repeatable commands for local development.
 
+For the complete end-to-end reference, read `docs/DEVELOPMENT_FULL.md`.
+
 ## Prerequisites
 
 - Go (current project uses module `go 1.24`)
@@ -12,7 +14,7 @@ This file documents repeatable commands for local development.
   - `protoc-gen-go`
   - `protoc-gen-go-grpc`
 
-If a required tool is missing, install it before proceeding.
+If a required tool is missing, ask the user to install it before proceeding.
 
 ## Install Dependencies
 
@@ -45,6 +47,12 @@ Generated files:
 - `api/proto/talos/hub/v1/hub.pb.go`
 - `api/proto/talos/hub/v1/hub_grpc.pb.go`
 
+Or use:
+
+```bash
+make proto
+```
+
 ## Validate Backend
 
 ```bash
@@ -59,10 +67,64 @@ cd frontend
 npm run build
 ```
 
+## One-Command Verification
+
+From repo root:
+
+```bash
+make verify
+```
+
+## SDK Locations
+
+- Go SDK: `sdk/go/talos`
+- TS SDK baseline: `sdk/ts`
+- Rust SDK baseline: `sdk/rust`
+- SDK usage guide: `docs/SDK_GUIDE.md`
+- Tiny app initialization guide: `docs/TINY_APP_INIT.md`
+
+## Runtime Artifacts
+
+- Persisted permission grants: `Temp/permissions.json`
+
+## Demo Tiny App
+
+Build bundled Go demo tiny app:
+
+```bash
+make tiny-demo-build
+```
+
+Build bundled TypeScript iframe demo app:
+
+```bash
+make tiny-ts-demo-build
+```
+
+Clean built binary:
+
+```bash
+make tiny-demo-clean
+```
+
+Clean TypeScript generated web file:
+
+```bash
+make tiny-ts-demo-clean
+```
+
+## Build Full App
+
+Build everything (proto, demos, verify, Wails package):
+
+```bash
+make app-build
+```
+
 ## Run Talos in Dev Mode
 
 From repo root:
 
 ```bash
-wails dev
+make dev
 ```
