@@ -28,6 +28,8 @@ type Definition struct {
 	WebEntry      string   `yaml:"web_entry,omitempty" json:"web_entry,omitempty"`
 	Permissions   []string `yaml:"permissions,omitempty" json:"permissions,omitempty"`
 	MultiInstance bool     `yaml:"multi_instance" json:"multi_instance"`
+	// Development is optional; honored only when the host is built without production tag and TALOS_DEV_MODE=1.
+	Development *Development `yaml:"development,omitempty" json:"development,omitempty"`
 }
 
 // Parse reads and validates a raw manifest.yaml payload.
@@ -93,6 +95,12 @@ func (m *Definition) Validate() error {
 	}
 	if filepath.IsAbs(m.WebEntry) {
 		return errors.New("manifest: web_entry must be a relative path")
+	}
+
+	if m.Development != nil {
+		if err := m.Development.validate(); err != nil {
+			return err
+		}
 	}
 
 	return nil

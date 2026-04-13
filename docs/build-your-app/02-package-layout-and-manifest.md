@@ -2,8 +2,10 @@
 
 ## Recommended Layout
 
+Use **ASCII folder names without spaces** (e.g. `My-App` or `MyApp`). Spaces under `Packages/` can break Go tooling if any npm dependency ships `.go` files; the Talos repo runs `scripts/ensure-npm-go-modules.sh` after installs to isolate `node_modules`, but avoiding spaces is still recommended.
+
 ```text
-Packages/My App/
+Packages/My-App/
 ├── manifest.yaml
 ├── dist/
 │   └── index.html
@@ -45,6 +47,25 @@ multi_instance: false
 - `binary`: optional relative path to executable sidecar.
 - `permissions`: requested capabilities (host policy still controls grants).
 - `multi_instance`: whether multiple UI instances are allowed.
+
+## Development vs production iframe (`development`)
+
+For local work, you can point the iframe at a dev server (Vite, etc.) **only when** Talos is run in developer mode (`TALOS_DEV_MODE=1`, e.g. `make dev`). Release builds (`wails build -tags=production`) **never** load these URLs or run `development.command`.
+
+```yaml
+web_entry: dist/index.html
+
+development:
+  command: ["npm", "run", "dev"]
+  url: "http://127.0.0.1:5174"
+  allowed_origins:
+    - "http://127.0.0.1:5174"
+    - "http://localhost:5174"
+```
+
+- `development.url`: required when `development.command` is set; must be `http` or `https` on loopback (`localhost`, `127.0.0.1`, `::1`, or `127.*`).
+- `development.command`: optional argv list (first element is the binary name; no shell). If omitted, only `development.url` is used (you start the dev server yourself).
+- `development.allowed_origins`: origins allowed for the iframe bridge; must include the origin of `development.url`.
 
 ## Validation Constraints
 

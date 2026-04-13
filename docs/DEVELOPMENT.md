@@ -18,11 +18,9 @@ If a required tool is missing, ask the user to install it before proceeding.
 
 ## Install Dependencies
 
-From repo root:
+From repo root, use `make deps` (runs `npm install` for Launchpad, [`scripts/ensure-npm-go-modules.sh`](../scripts/ensure-npm-go-modules.sh) to keep each `Packages/**/node_modules` tree as a nested Go module, then `go mod tidy`). That way third-party `.go` files inside npm packages are not part of the `Talos` module.
 
-```bash
-go mod tidy
-```
+If you run `go mod tidy` yourself, run `npm --prefix Packages/Launchpad install` and `bash scripts/ensure-npm-go-modules.sh` first whenever `node_modules` changes.
 
 From frontend:
 

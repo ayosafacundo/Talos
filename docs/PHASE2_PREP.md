@@ -99,7 +99,7 @@ What is not fully complete yet:
 - [x] Go SDK usable by a tiny app demo
 - [x] TS and Rust SDK baselines generated and documented
 - [x] FS scoping enforcement validated with deny-by-default tests
-- [ ] Iframe bridge passes host-app message exchange tests
+- [x] Iframe bridge passes host-app message exchange tests (Launchpad `bridge.ts` Vitest + manual host envelope; see `Packages/Launchpad/src/bridge.test.ts`)
 
 ## Progress Snapshot
 

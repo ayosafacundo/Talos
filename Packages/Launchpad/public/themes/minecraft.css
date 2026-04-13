@@ -1,0 +1,30 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+/* Preset: pixel / Minecraft — overrides Talos tokens only */
+:root {
+  --talos-color-bg-primary: #2d2d2d;
+  --talos-color-bg-secondary: #3d3d3d;
+  --talos-color-bg-tertiary: #4d4d4d;
+  --talos-color-bg-surface: #373737;
+  --talos-color-bg-overlay: rgba(0, 0, 0, 0.8);
+  --talos-color-text-primary: #d4d4d4;
+  --talos-color-text-secondary: #aaa;
+  --talos-color-text-muted: #777;
+  --talos-color-text-accent: #ffcc00;
+  --talos-color-accent: #5b8731;
+  --talos-color-accent-hover: #6da03a;
+  --talos-color-accent-glow: rgba(91, 135, 49, 0.4);
+  --talos-color-border: #555;
+  --talos-color-sidebar: #1a1a1a;
+  --talos-radius-md: 0px;
+  --talos-radius-sm: 0px;
+  --talos-font-sans: "Press Start 2P", monospace;
+  --talos-sidebar-width: 64px;
+  --talos-sidebar-icon-size: 40px;
+  --talos-sidebar-active: #5b8731;
+  --talos-slot-bg: #8b8b8b;
+  --talos-slot-border-light: #c6c6c6;
+  --talos-slot-border-dark: #373737;
+  --talos-slot-hover: #a0a0a0;
+  --talos-slot-size: 86px;
+}

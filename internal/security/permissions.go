@@ -4,7 +4,16 @@ import "sync"
 
 const (
 	ScopeFSData = "fs:data"
+
+	// MsgPendingHostApproval is returned by the UI prompt hook when the host must
+	// collect a decision; Request then blocks until CompletePendingDecision runs.
+	MsgPendingHostApproval = "pending host approval"
 )
+
+type permissionWaitOutcome struct {
+	granted bool
+	msg     string
+}
 
 type RequestHandler func(appID, scope, reason string) (bool, string)
 
@@ -13,13 +22,21 @@ type Permissions struct {
 	mu       sync.RWMutex
 	grants   map[string]map[string]bool
 	onPrompt RequestHandler
+
+	waitMu  sync.Mutex
+	waiters map[string][]chan permissionWaitOutcome
 }
 
 func NewPermissions(onPrompt RequestHandler) *Permissions {
 	return &Permissions{
 		grants:   make(map[string]map[string]bool),
 		onPrompt: onPrompt,
+		waiters:  make(map[string][]chan permissionWaitOutcome),
 	}
+}
+
+func waitKey(appID, scope string) string {
+	return appID + "\x00" + scope
 }
 
 func (p *Permissions) IsGranted(appID, scope string) bool {
@@ -100,6 +117,38 @@ func (p *Permissions) Request(appID, scope, reason string) (bool, string) {
 	granted, msg := p.onPrompt(appID, scope, reason)
 	if granted {
 		p.Set(appID, scope, true)
+		return true, msg
 	}
-	return granted, msg
+	if msg != MsgPendingHostApproval {
+		return granted, msg
+	}
+
+	ch := make(chan permissionWaitOutcome, 1)
+	key := waitKey(appID, scope)
+	p.waitMu.Lock()
+	p.waiters[key] = append(p.waiters[key], ch)
+	p.waitMu.Unlock()
+
+	out := <-ch
+	if out.granted {
+		p.Set(appID, scope, true)
+	}
+	return out.granted, out.msg
+}
+
+// CompletePendingDecision unblocks Request callers waiting on (appID, scope).
+func (p *Permissions) CompletePendingDecision(appID, scope string, granted bool, msg string) {
+	key := waitKey(appID, scope)
+	p.waitMu.Lock()
+	waiters := p.waiters[key]
+	delete(p.waiters, key)
+	p.waitMu.Unlock()
+
+	out := permissionWaitOutcome{granted: granted, msg: msg}
+	for _, ch := range waiters {
+		select {
+		case ch <- out:
+		default:
+		}
+	}
 }

@@ -62,3 +62,62 @@ binary: /usr/bin/something
 		t.Fatalf("expected Parse() error")
 	}
 }
+
+func TestParse_DevelopmentBlockValid(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte(`
+id: app.dev
+name: Dev App
+web_entry: dist/index.html
+development:
+  command: ["npm", "run", "dev"]
+  url: "http://127.0.0.1:5174"
+  allowed_origins:
+    - "http://127.0.0.1:5174"
+`)
+
+	def, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if def.Development == nil || def.Development.URL == "" {
+		t.Fatal("expected development block")
+	}
+}
+
+func TestParse_DevelopmentCommandRequiresURL(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte(`
+id: app.dev
+name: Dev App
+web_entry: dist/index.html
+development:
+  command: ["npm", "run", "dev"]
+`)
+
+	_, err := Parse(raw)
+	if err == nil {
+		t.Fatal("expected error when development.command without url")
+	}
+}
+
+func TestParse_DevelopmentURLMustBeLoopback(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte(`
+id: app.dev
+name: Dev App
+web_entry: dist/index.html
+development:
+  url: "http://example.com/"
+  allowed_origins:
+    - "http://example.com"
+`)
+
+	_, err := Parse(raw)
+	if err == nil {
+		t.Fatal("expected error for non-loopback development url")
+	}
+}

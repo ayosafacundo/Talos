@@ -16,14 +16,17 @@ import (
 
 // Manager manages tiny app binary lifecycles.
 type Manager struct {
-	mu      sync.RWMutex
-	running map[string]*exec.Cmd
-	logDir  string
+	mu         sync.RWMutex
+	running    map[string]*exec.Cmd
+	logDir     string
+	devMu      sync.Mutex
+	devRunning map[string]*exec.Cmd
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		running: make(map[string]*exec.Cmd),
+		running:    make(map[string]*exec.Cmd),
+		devRunning: make(map[string]*exec.Cmd),
 	}
 }
 
@@ -111,13 +114,13 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 	return nil
 }
 
-// Stop stops a running app by id.
+// Stop stops a running app by id. No-op if not running.
 func (m *Manager) Stop(appID string) error {
 	m.mu.RLock()
 	cmd := m.running[appID]
 	m.mu.RUnlock()
 	if cmd == nil || cmd.Process == nil {
-		return fmt.Errorf("process: app %q is not running", appID)
+		return nil
 	}
 
 	if err := cmd.Process.Kill(); err != nil {
@@ -126,7 +129,7 @@ func (m *Manager) Stop(appID string) error {
 	return nil
 }
 
-// StopAll terminates all running app processes.
+// StopAll terminates all running app processes and dev servers.
 func (m *Manager) StopAll() {
 	m.mu.RLock()
 	ids := make([]string, 0, len(m.running))
@@ -138,6 +141,7 @@ func (m *Manager) StopAll() {
 	for _, appID := range ids {
 		_ = m.Stop(appID)
 	}
+	m.StopAllDev()
 }
 
 // RunningIDs returns ids of all currently running apps.

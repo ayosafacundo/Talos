@@ -42,6 +42,20 @@ permissions:
 multi_instance: false
 ```
 
+### Optional: dev-server iframe (developer mode only)
+
+When iterating on the web UI, you can load a local dev server instead of the built `dist/` tree. This applies only when `TALOS_DEV_MODE=1` (for example `make dev`); production binaries ignore the `development` block.
+
+```yaml
+web_entry: dist/index.html
+development:
+  url: "http://127.0.0.1:5174"
+  allowed_origins:
+    - "http://127.0.0.1:5174"
+```
+
+See `docs/build-your-app/02-package-layout-and-manifest.md` for `development.command` and validation rules.
+
 ## 3) Create Tiny App Source
 
 Create app source under `examples/tinyapps/my-tiny-app/main.go` and use:

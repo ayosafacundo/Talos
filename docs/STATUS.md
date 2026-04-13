@@ -61,22 +61,22 @@ This file tracks implementation maturity in a release-oriented format.
 
 Follow-ups:
 
-- optional stricter `postMessage` targetOrigin where the runtime exposes a non-null origin
-- optional hub integration test running Talos headless with a real UDS path
+- `postMessage` targetOrigin: parent replies use sender `event.origin` when set; SDK iframe transport and host→iframe context menu use `ancestorOrigins` / iframe URL origin when available, else `"*"`.
+- Hub gRPC integration tests with a real socket: `make integration-hub` or `scripts/run_integration_hub.sh` (optional env `TALOS_TEST_SOCKET`).
 
 ### 2) TS and Rust SDK Runtime Completion
 
 Follow-ups:
 
-- automated integration test in CI with `TALOS_TEST_SOCKET` against `wails dev`
+- CI runs hub integration tests with `TALOS_TEST_SOCKET` (`.github/workflows/ci.yml`); optional extension: full `wails dev` smoke.
 - optional Node-side gRPC transport for non-iframe TS binaries
 
 ### 3) Permission UX and Policy Completeness
 
 Follow-ups:
 
-- async permission RPC so the first SDK attempt can block until the user answers (currently retry after Allow/Deny)
-- richer audit log export
+- async permission RPC: first `RequestPermission` / hub call blocks until Allow/Deny completes (`security.MsgPendingHostApproval` + `CompletePendingDecision`).
+- permission audit JSONL at `Temp/logs/permission_audit.jsonl`; `ListPermissionAudit` for export/UI.
 
 ### 4) Integration/E2E Validation
 

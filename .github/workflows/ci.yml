@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Packages/Launchpad/package-lock.json
+      - name: Go test and build
+        run: make test build
+      - name: Launchpad unit tests
+        run: make launchpad-test
+      - name: Hub gRPC integration tests
+        run: bash scripts/run_integration_hub.sh

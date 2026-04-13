@@ -1,0 +1,22 @@
+/* Preset: dark blue / crimson accent */
+:root {
+  --talos-color-bg-primary: #1a1a2e;
+  --talos-color-bg-secondary: #16213e;
+  --talos-color-bg-tertiary: #0f3460;
+  --talos-color-bg-surface: #1a1a2e;
+  --talos-color-bg-overlay: rgba(0, 0, 0, 0.85);
+  --talos-color-text-primary: #e0e0e0;
+  --talos-color-text-secondary: #a0a0a0;
+  --talos-color-text-muted: #666;
+  --talos-color-text-accent: #ffcc00;
+  --talos-color-accent: #e94560;
+  --talos-color-accent-hover: #ff6b6b;
+  --talos-color-accent-glow: rgba(233, 69, 96, 0.3);
+  --talos-color-border: #333;
+  --talos-color-sidebar: #111;
+  --talos-sidebar-active: #e94560;
+  --talos-slot-bg: #2a2a3e;
+  --talos-slot-border-light: #4a4a5e;
+  --talos-slot-border-dark: #0a0a1e;
+  --talos-slot-hover: #3a3a4e;
+}

@@ -1,0 +1,62 @@
+/* Tailwind-like utility classes for Talos tiny apps and host (opt-in). Prefix: talos- */
+
+.talos-bg-primary {
+  background: var(--talos-color-bg-primary);
+}
+.talos-bg-secondary {
+  background: var(--talos-color-bg-secondary);
+}
+.talos-bg-surface {
+  background: var(--talos-color-bg-surface);
+}
+.talos-text-primary {
+  color: var(--talos-color-text-primary);
+}
+.talos-text-secondary {
+  color: var(--talos-color-text-secondary);
+}
+.talos-text-muted {
+  color: var(--talos-color-text-muted);
+}
+.talos-border {
+  border: 1px solid var(--talos-color-border);
+}
+.talos-rounded-md {
+  border-radius: var(--talos-radius-md);
+}
+.talos-rounded-sm {
+  border-radius: var(--talos-radius-sm);
+}
+.talos-shadow-md {
+  box-shadow: var(--talos-shadow-md);
+}
+.talos-p-3 {
+  padding: var(--talos-space-3);
+}
+.talos-p-4 {
+  padding: var(--talos-space-4);
+}
+.talos-gap-2 {
+  gap: var(--talos-space-2);
+}
+.talos-flex {
+  display: flex;
+}
+.talos-flex-col {
+  flex-direction: column;
+}
+.talos-items-center {
+  align-items: center;
+}
+.talos-justify-between {
+  justify-content: space-between;
+}
+.talos-w-full {
+  width: 100%;
+}
+.talos-font-sans {
+  font-family: var(--talos-font-sans);
+}
+.talos-accent {
+  color: var(--talos-color-accent);
+}

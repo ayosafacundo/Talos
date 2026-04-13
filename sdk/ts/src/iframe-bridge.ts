@@ -7,6 +7,21 @@ import type { ContextMenuOption, PermissionResult, TalosTransport } from "./type
 
 export const BRIDGE_CHANNEL = "talos:sdk:v1" as const;
 
+/** Prefer parent origin when the runtime exposes it; fall back to "*" (e.g. file://). */
+export function parentPostMessageTarget(): string {
+  try {
+    const loc = window.location as unknown as { ancestorOrigins?: DOMStringList }
+    const ao = loc.ancestorOrigins
+    if (ao && ao.length > 0) {
+      const o = ao.item(ao.length - 1)
+      if (o && o !== "null") return o
+    }
+  } catch {
+    /* ignore */
+  }
+  return "*"
+}
+
 function bridgeTokenFromLocation(): string {
   try {
     const q = new URLSearchParams(window.location.search);
@@ -72,7 +87,7 @@ export class IframeBridgeTransport implements TalosTransport {
     }
     return new Promise((resolve, reject) => {
       this.pending.set(requestId, { resolve, reject })
-      window.parent.postMessage(req, "*")
+      window.parent.postMessage(req, parentPostMessageTarget())
       window.setTimeout(() => {
         if (!this.pending.has(requestId)) return
         this.pending.delete(requestId)
