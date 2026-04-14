@@ -16,7 +16,6 @@ help:
 	@echo "  production-gate  go test internal/buildmode with -tags=production"
 	@echo "  launchpad-test Run Launchpad (Vitest) unit tests"
 	@echo "  sdk-ts-test    Run Vitest for sdk/ts"
-	@echo "  sdk-ts-test    Run Vitest for sdk/ts"
 	@echo "  integration-hub Run hub gRPC integration tests"
 	@echo "  frontend-build Build Launchpad (Vite) + sync sdk/talos CSS"
 	@echo "  example-go-app-build Validate Example Go app source build"
@@ -25,15 +24,9 @@ help:
 	@echo "  example-rust-app-clean Remove Example Rust app binary"
 	@echo "  example-ts-app-build Build Example TypeScript app web assets"
 	@echo "  example-ts-app-clean Remove Example TypeScript app generated assets"
-	@echo "  example-go-app-build Validate Example Go app source build"
-	@echo "  example-go-app-clean Remove Example Go app binary"
-	@echo "  example-rust-app-build Validate Example Rust app source build"
-	@echo "  example-rust-app-clean Remove Example Rust app binary"
-	@echo "  example-ts-app-build Build Example TypeScript app web assets"
-	@echo "  example-ts-app-clean Remove Example TypeScript app generated assets"
-	@echo "  app-build        Build full Talos app and demos (wails build -tags=production)"
-	@echo "  dev              Run Talos in development mode (proto + frontend-build + wails dev)"
-	@echo "  talos-sync-css   Copy Talos UI CSS from Launchpad to sdk/talos/"
+	@echo "  app-build      Build full Talos app and demos (wails build -tags=production)"
+	@echo "  dev            Run Talos in development mode (proto + frontend-build + wails dev)"
+	@echo "  talos-sync-css Copy Talos UI CSS from Launchpad to sdk/talos/"
 	@echo ""
 	@echo "Build modes:"
 	@echo "  Release: app-build uses -tags=production so development manifest URLs/commands are disabled."
@@ -86,7 +79,6 @@ frontend-build: proto Packages/Launchpad
 	$(MAKE) talos-sync-css
 	go mod tidy
 
-
 talos-sync-css:
 	@mkdir -p sdk/talos
 	cp -f Packages/Launchpad/src/talos/tokens.css Packages/Launchpad/src/talos/legacy-alias.css Packages/Launchpad/src/talos/utilities.css sdk/talos/
@@ -122,33 +114,10 @@ example-rust-app-build:
 	@if [ -f "$(EXAMPLE_RUST_SRC)/Cargo.toml" ]; then \
 	  cargo build --release --manifest-path "$(EXAMPLE_RUST_SRC)/Cargo.toml" && \
 	  echo "Validated Example Rust app source build"; \
-# Example mini apps (one per SDK language)
-EXAMPLE_GO_SRC := Packages/Example Go App/src
-EXAMPLE_RUST_SRC := Packages/Example Rust App
-EXAMPLE_TS_SRC := Packages/Example TS App
-
-example-go-app-build:
-	@if [ -d "$(EXAMPLE_GO_SRC)" ]; then \
-	  ( cd "$(EXAMPLE_GO_SRC)" && go build -trimpath . ) && \
-	  echo "Validated Example Go app source build"; \
 	else \
-	  echo "make: $(EXAMPLE_GO_SRC) not in tree — skip example-go-app-build"; \
-	fi
-
-example-go-app-clean:
-	@echo "No generated Go artifacts to clean (wrapper-based runtime)."
-
-example-rust-app-build:
-	@if [ -f "$(EXAMPLE_RUST_SRC)/Cargo.toml" ]; then \
-	  cargo build --release --manifest-path "$(EXAMPLE_RUST_SRC)/Cargo.toml" && \
-	  echo "Validated Example Rust app source build"; \
-	else \
-	  echo "make: $(EXAMPLE_RUST_SRC) not in tree — skip example-rust-app-build"; \
 	  echo "make: $(EXAMPLE_RUST_SRC) not in tree — skip example-rust-app-build"; \
 	fi
 
-example-rust-app-clean:
-	@echo "No generated Rust artifacts to clean (wrapper-based runtime)."
 example-rust-app-clean:
 	@echo "No generated Rust artifacts to clean (wrapper-based runtime)."
 
@@ -156,17 +125,10 @@ example-ts-app-build:
 	@if [ -f "$(EXAMPLE_TS_SRC)/package.json" ]; then \
 	  npm --prefix "$(EXAMPLE_TS_SRC)" install && npm --prefix "$(EXAMPLE_TS_SRC)" run build; \
 	  echo "Built Example TS app under Packages/Example TS App/dist"; \
-example-ts-app-build:
-	@if [ -f "$(EXAMPLE_TS_SRC)/package.json" ]; then \
-	  npm --prefix "$(EXAMPLE_TS_SRC)" install && npm --prefix "$(EXAMPLE_TS_SRC)" run build; \
-	  echo "Built Example TS app under Packages/Example TS App/dist"; \
 	else \
-	  echo "make: $(EXAMPLE_TS_SRC) not in tree — skip example-ts-app-build"; \
 	  echo "make: $(EXAMPLE_TS_SRC) not in tree — skip example-ts-app-build"; \
 	fi
 
-example-ts-app-clean:
-	rm -f "Packages/Example TS App/dist/index.html" "Packages/Example TS App/dist/app.js" "Packages/Example TS App/dist/app.css"
 example-ts-app-clean:
 	rm -f "Packages/Example TS App/dist/index.html" "Packages/Example TS App/dist/app.js" "Packages/Example TS App/dist/app.css"
 

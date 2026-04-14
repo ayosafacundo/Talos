@@ -20,8 +20,13 @@ jobs:
           cache: npm
           cache-dependency-path: |
             Packages/Launchpad/package-lock.json
+            Packages/Example TS App/package-lock.json
             sdk/ts/package-lock.json
+      - name: Build frontend assets first (required by go:embed)
+        run: make frontend-build
+      - name: Validate default example apps
+        run: make example-go-app-build example-rust-app-build example-ts-app-build
       - name: Verify (Go tests, build, Launchpad + TS SDK tests, production gate)
-        run: make verify
+        run: make verify-core
       - name: Hub gRPC integration tests
         run: bash scripts/run_integration_hub.sh

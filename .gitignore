@@ -20,7 +20,6 @@
 !Packages/Example Rust App/**
 !Packages/Example TS App/
 !Packages/Example TS App/**
-!Packages/Launchpad/dist
 !Packages/Launchpad/manifest.yaml
 
 # npm packages
