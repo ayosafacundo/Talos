@@ -12,13 +12,17 @@
 .cursorrules
 /.cursor
 
-#backend
-/build/
-Packages/*
-!Packages/.gitkeep
+# Launchpad specific and example apps
+!Packages/Launchpad/
+!Packages/Launchpad/**
+!Packages/Example Go App/**
+!Packages/Example Rust App/
+!Packages/Example Rust App/**
+!Packages/Example TS App/
+!Packages/Example TS App/**
+!Packages/Launchpad/dist
+!Packages/Launchpad/manifest.yaml
 
-#Packages
-Packages/
 # npm packages
 Packages/*/node_modules/
 Packages/*/package-lock.json
@@ -28,18 +32,6 @@ Packages/*/target/
 
 # Go binaries
 Packages/*/bin/
-
-# Launchpad specific and example apps
-!Packages/Launchpad/
-!Packages/Launchpad/**
-!Packages/Example Go App/
-!Packages/Example Go App/**
-!Packages/Example Rust App/
-!Packages/Example Rust App/**
-!Packages/Example TS App/
-!Packages/Example TS App/**
-!Packages/Launchpad/dist
-!Packages/Launchpad/manifest.yaml
 
 #logs and temp files
 *.log
@@ -55,3 +47,5 @@ build/
 #sdk
 sdk/rust/target/
 sdk/ts/node_modules/
+sdk/ts/package-lock.json
+

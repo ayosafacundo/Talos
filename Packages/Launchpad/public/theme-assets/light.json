@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "theme_name": "light",
+  "variant_id": "core.light",
+  "display_name": "Light Core",
+  "components_css_href": "/theme-assets/core.light.components.css",
+  "notes": "Clean light shell with subtle separators."
+}

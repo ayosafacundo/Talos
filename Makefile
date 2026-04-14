@@ -3,7 +3,7 @@ SHELL := /bin/bash
 GO_BIN := $(shell go env GOPATH)/bin
 PROTO_FILE := api/proto/talos/hub/v1/hub.proto
 
-.PHONY: help install-tools deps proto test build verify production-gate launchpad-test sdk-ts-test example-go-app-build example-go-app-clean example-rust-app-build example-rust-app-clean example-ts-app-build example-ts-app-clean app-build dev talos-sync-css integration-hub
+.PHONY: help install-tools deps proto test build verify verify-core production-gate launchpad-test sdk-ts-test example-go-app-build example-go-app-clean example-rust-app-build example-rust-app-clean example-ts-app-build example-ts-app-clean app-build dev talos-sync-css integration-hub
 
 help:
 	@echo "Available targets:"
@@ -12,12 +12,19 @@ help:
 	@echo "  deps           npm install Launchpad + isolate npm for Go + go mod tidy"
 	@echo "  test           Run Go tests"
 	@echo "  build          Build Go packages"
-	@echo "  verify         Run all validation checks (Go + Launchpad + TS SDK + production gate)"
+	@echo "  verify         Run validation checks; if they fail, try frontend-build then fail"
 	@echo "  production-gate  go test internal/buildmode with -tags=production"
 	@echo "  launchpad-test Run Launchpad (Vitest) unit tests"
 	@echo "  sdk-ts-test    Run Vitest for sdk/ts"
+	@echo "  sdk-ts-test    Run Vitest for sdk/ts"
 	@echo "  integration-hub Run hub gRPC integration tests"
 	@echo "  frontend-build Build Launchpad (Vite) + sync sdk/talos CSS"
+	@echo "  example-go-app-build Validate Example Go app source build"
+	@echo "  example-go-app-clean Remove Example Go app binary"
+	@echo "  example-rust-app-build Validate Example Rust app source build"
+	@echo "  example-rust-app-clean Remove Example Rust app binary"
+	@echo "  example-ts-app-build Build Example TypeScript app web assets"
+	@echo "  example-ts-app-clean Remove Example TypeScript app generated assets"
 	@echo "  example-go-app-build Validate Example Go app source build"
 	@echo "  example-go-app-clean Remove Example Go app binary"
 	@echo "  example-rust-app-build Validate Example Rust app source build"
@@ -53,7 +60,16 @@ test:
 build:
 	go build ./...
 
-verify: test build launchpad-test sdk-ts-test production-gate
+verify-core: test build launchpad-test sdk-ts-test production-gate
+
+verify:
+	@set -e; \
+	if $(MAKE) verify-core; then \
+	  exit 0; \
+	fi; \
+	echo "verify failed; attempting frontend-build before exiting..."; \
+	$(MAKE) frontend-build || true; \
+	exit 1
 
 sdk-ts-test:
 	npm --prefix sdk/ts install
@@ -106,10 +122,33 @@ example-rust-app-build:
 	@if [ -f "$(EXAMPLE_RUST_SRC)/Cargo.toml" ]; then \
 	  cargo build --release --manifest-path "$(EXAMPLE_RUST_SRC)/Cargo.toml" && \
 	  echo "Validated Example Rust app source build"; \
+# Example mini apps (one per SDK language)
+EXAMPLE_GO_SRC := Packages/Example Go App/src
+EXAMPLE_RUST_SRC := Packages/Example Rust App
+EXAMPLE_TS_SRC := Packages/Example TS App
+
+example-go-app-build:
+	@if [ -d "$(EXAMPLE_GO_SRC)" ]; then \
+	  ( cd "$(EXAMPLE_GO_SRC)" && go build -trimpath . ) && \
+	  echo "Validated Example Go app source build"; \
 	else \
+	  echo "make: $(EXAMPLE_GO_SRC) not in tree — skip example-go-app-build"; \
+	fi
+
+example-go-app-clean:
+	@echo "No generated Go artifacts to clean (wrapper-based runtime)."
+
+example-rust-app-build:
+	@if [ -f "$(EXAMPLE_RUST_SRC)/Cargo.toml" ]; then \
+	  cargo build --release --manifest-path "$(EXAMPLE_RUST_SRC)/Cargo.toml" && \
+	  echo "Validated Example Rust app source build"; \
+	else \
+	  echo "make: $(EXAMPLE_RUST_SRC) not in tree — skip example-rust-app-build"; \
 	  echo "make: $(EXAMPLE_RUST_SRC) not in tree — skip example-rust-app-build"; \
 	fi
 
+example-rust-app-clean:
+	@echo "No generated Rust artifacts to clean (wrapper-based runtime)."
 example-rust-app-clean:
 	@echo "No generated Rust artifacts to clean (wrapper-based runtime)."
 
@@ -117,10 +156,17 @@ example-ts-app-build:
 	@if [ -f "$(EXAMPLE_TS_SRC)/package.json" ]; then \
 	  npm --prefix "$(EXAMPLE_TS_SRC)" install && npm --prefix "$(EXAMPLE_TS_SRC)" run build; \
 	  echo "Built Example TS app under Packages/Example TS App/dist"; \
+example-ts-app-build:
+	@if [ -f "$(EXAMPLE_TS_SRC)/package.json" ]; then \
+	  npm --prefix "$(EXAMPLE_TS_SRC)" install && npm --prefix "$(EXAMPLE_TS_SRC)" run build; \
+	  echo "Built Example TS app under Packages/Example TS App/dist"; \
 	else \
+	  echo "make: $(EXAMPLE_TS_SRC) not in tree — skip example-ts-app-build"; \
 	  echo "make: $(EXAMPLE_TS_SRC) not in tree — skip example-ts-app-build"; \
 	fi
 
+example-ts-app-clean:
+	rm -f "Packages/Example TS App/dist/index.html" "Packages/Example TS App/dist/app.js" "Packages/Example TS App/dist/app.css"
 example-ts-app-clean:
 	rm -f "Packages/Example TS App/dist/index.html" "Packages/Example TS App/dist/app.js" "Packages/Example TS App/dist/app.css"
 

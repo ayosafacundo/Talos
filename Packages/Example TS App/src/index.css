@@ -1,0 +1,22 @@
+@import "@talos/sdk/talos/tokens.css";
+@import "@talos/sdk/talos/legacy-alias.css";
+@import "@talos/sdk/talos/utilities.css";
+@import "@talos/web-components/components.css";
+
+:root {
+  font-family: var(--talos-font-sans, Inter, system-ui, sans-serif);
+}
+
+body {
+  margin: 0;
+  background: var(--talos-color-bg-primary);
+  color: var(--talos-color-text-primary);
+}
+
+.app-root {
+  visibility: hidden;
+}
+
+:root[data-talos-theme] .app-root {
+  visibility: visible;
+}

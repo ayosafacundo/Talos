@@ -1,0 +1,9 @@
+id: app.example.go
+name: Example Go app
+version: "0.1.0"
+binary: bin/example-go-app
+web_entry: dist/index.html
+permissions:
+  - fs:external
+  - net:internet
+multi_instance: false

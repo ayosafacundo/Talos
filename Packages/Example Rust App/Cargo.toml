@@ -1,0 +1,9 @@
+[package]
+name = "example-rust-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+talos-sdk = { path = "../../sdk/rust" }

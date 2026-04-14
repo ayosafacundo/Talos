@@ -1,0 +1,9 @@
+id: app.example.ts
+name: Example TypeScript app
+version: "0.1.0"
+web_entry: dist/index.html
+permissions:
+  - fs:external
+multi_instance: false
+development:
+  command: ["npm", "run", "dev"]

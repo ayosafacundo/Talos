@@ -1,0 +1,7 @@
+:root {
+  --talos-component-border: var(--talos-color-border);
+  --talos-component-bg: color-mix(in srgb, var(--talos-color-bg-surface) 90%, black 10%);
+  --talos-component-bg-soft: var(--talos-color-bg-secondary);
+  --talos-radius-md: 0;
+  --talos-radius-sm: 0;
+}
