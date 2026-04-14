@@ -29,6 +29,10 @@ jobs:
         with:
           version: "26.x"
 
+      - name: Install protoc Go plugins
+        shell: bash
+        run: make install-tools
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

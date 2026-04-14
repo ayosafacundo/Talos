@@ -18,6 +18,8 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "26.x"
+      - name: Install protoc Go plugins
+        run: make install-tools
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
