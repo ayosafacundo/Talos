@@ -17,8 +17,6 @@ This is the "where is everything?" reference for day-to-day development.
   - each package is expected to include `manifest.yaml` and a `web_entry` asset (default `dist/index.html`).
 - `sdk/`
   - tiny app SDKs (Go/TS/Rust).
-- `examples/`
-  - tiny app sample code and build inputs.
 - `docs/`
   - architecture and development docs.
 

@@ -1,6 +1,8 @@
 /**
  * Browser iframe transport for Talos host bridge (postMessage v1).
  * Reads `_talos_bt` from the page URL (injected when the host loads the iframe).
+ *
+ * See docs/dev/iframe-bridge.md for origin and allowlist rules shared with the host.
  */
 
 import type { ContextMenuOption, PermissionResult, TalosTransport } from "./types";
@@ -71,7 +73,7 @@ export class IframeBridgeTransport implements TalosTransport {
     this.pending.clear()
   }
 
-  private call(method: string, params: Record<string, unknown>): Promise<unknown> {
+  private call(method: string, params: Record<string, unknown>, timeoutMs = 30_000): Promise<unknown> {
     const requestId =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
@@ -88,11 +90,13 @@ export class IframeBridgeTransport implements TalosTransport {
     return new Promise((resolve, reject) => {
       this.pending.set(requestId, { resolve, reject })
       window.parent.postMessage(req, parentPostMessageTarget())
-      window.setTimeout(() => {
-        if (!this.pending.has(requestId)) return
-        this.pending.delete(requestId)
-        reject(new Error(`timeout waiting for ${method}`))
-      }, 30_000)
+      if (timeoutMs > 0) {
+        window.setTimeout(() => {
+          if (!this.pending.has(requestId)) return
+          this.pending.delete(requestId)
+          reject(new Error(`timeout waiting for ${method}`))
+        }, timeoutMs)
+      }
     })
   }
 
@@ -123,7 +127,7 @@ export class IframeBridgeTransport implements TalosTransport {
   }
 
   async requestPermission(scope: string, reason?: string): Promise<PermissionResult> {
-    const result = (await this.call("requestPermission", { scope, reason: reason ?? "" })) as {
+    const result = (await this.call("requestPermission", { scope, reason: reason ?? "" }, 0)) as {
       granted?: boolean
       message?: string
     }
@@ -134,23 +138,44 @@ export class IframeBridgeTransport implements TalosTransport {
   }
 
   async resolvePath(appId: string, relativePath: string): Promise<string> {
+    void appId
     const result = (await this.call("resolvePath", { relative_path: relativePath })) as {
       resolved_path?: string
     }
     return String(result.resolved_path || "")
   }
 
+  async readScopedText(appId: string, relativePath: string): Promise<{ found: boolean; text: string }> {
+    void appId
+    const result = (await this.call("readScopedText", { relative_path: relativePath })) as {
+      found?: boolean
+      text?: string
+    }
+    return {
+      found: Boolean(result.found),
+      text: String(result.text || ""),
+    }
+  }
+
+  async writeScopedText(appId: string, relativePath: string, text: string): Promise<void> {
+    void appId
+    await this.call("writeScopedText", { relative_path: relativePath, text })
+  }
+
   async setContextMenuOptions(appId: string, options: ContextMenuOption[]): Promise<void> {
+    void appId
     await this.call("setContextMenuOptions", {
       options: options.map((o) => ({ id: o.id, label: o.label })),
     })
   }
 
   async clearContextMenuOptions(appId: string): Promise<void> {
+    void appId
     await this.call("clearContextMenuOptions", {})
   }
 
   async openContextMenu(appId: string, x?: number, y?: number): Promise<void> {
+    void appId
     await this.call("openContextMenu", { x: x ?? 0, y: y ?? 0 })
   }
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,6 +20,7 @@ import (
 	hubpb "Talos/api/proto/talos/hub/v1"
 	"Talos/internal/buildmode"
 	"Talos/internal/hub"
+	"Talos/internal/packageinstall"
 	"Talos/internal/packages"
 	"Talos/internal/process"
 	"Talos/internal/security"
@@ -49,6 +51,10 @@ type App struct {
 
 	mu       sync.RWMutex
 	packages map[string]*packages.PackageInfo
+
+	devResolvedMu  sync.RWMutex
+	devResolvedURL map[string]string // effective dev iframe base URL when discovered (overrides manifest until cleared)
+
 	logMu    sync.Mutex
 	auditMu  sync.Mutex
 
@@ -92,6 +98,8 @@ type AppManifestView struct {
 	StoreURL       string   `json:"store_url,omitempty"`
 	AllowedOrigins []string `json:"allowed_origins,omitempty"`
 	Development    bool     `json:"development,omitempty"`
+	// TrustStatus: unknown | ok | tampered | unsigned | signed_ok | signed_invalid (see packageinstall.TrustStatus).
+	TrustStatus string `json:"trust_status,omitempty"`
 }
 
 const launchpadPackageID = "app.launchpad"
@@ -116,6 +124,7 @@ func NewApp() *App {
 		packageLogDir:       filepath.Join(rootDir, "Temp", "logs", "packages"),
 		permissionAuditPath: filepath.Join(rootDir, "Temp", "logs", "permission_audit.jsonl"),
 		packages:            make(map[string]*packages.PackageInfo),
+		devResolvedURL:      make(map[string]string),
 	}
 }
 
@@ -237,19 +246,65 @@ func (a *App) StartPackage(packageID string) error {
 		return err
 	}
 	a.logInfo("package", fmt.Sprintf("started %s (log: %s)", packageID, filepath.Join(a.packageLogDir, packageID+".log")))
+	go a.promptDeclaredNetworkPermissions(pkg)
 
 	if buildmode.DevelopmentAllowed() && pkg.Manifest.Development != nil && len(pkg.Manifest.Development.Command) > 0 {
-		if err := a.processManager.StartDev(a.ctx, pkg, pkg.Manifest.Development.Command); err != nil {
+		a.clearDevResolvedURL(packageID)
+		manifestDev := strings.TrimSpace(pkg.Manifest.Development.URL)
+		waitForInitialResolve := manifestDev == ""
+		resolvedFirst := make(chan struct{}, 1)
+		devOpts := &process.DevStartOptions{
+			ManifestDevURL: manifestDev,
+			OnResolvedURL: func(resolved string) {
+				aligned := process.AlignDiscoveredDevURL(manifestDev, resolved)
+				a.setDevResolvedURL(packageID, aligned)
+				if waitForInitialResolve {
+					select {
+					case resolvedFirst <- struct{}{}:
+					default:
+					}
+				}
+				runtime.EventsEmit(a.ctx, "package:dev-url", map[string]string{
+					"app_id": packageID,
+					"url":    aligned,
+				})
+			},
+		}
+		if err := a.processManager.StartDev(a.ctx, pkg, pkg.Manifest.Development.Command, devOpts); err != nil {
 			a.logError("package", fmt.Sprintf("dev server start failed for %s: %v", packageID, err))
 		} else {
 			a.logInfo("package", fmt.Sprintf("dev server started for %s", packageID))
+			if waitForInitialResolve {
+				select {
+				case <-resolvedFirst:
+				case <-time.After(3 * time.Second):
+				}
+			}
 		}
 	}
 	return nil
 }
 
+func (a *App) promptDeclaredNetworkPermissions(pkg *packages.PackageInfo) {
+	if pkg == nil || pkg.Manifest == nil || a.permissions == nil || a.ctx == nil {
+		return
+	}
+	appID := pkg.Manifest.ID
+	for _, scope := range pkg.Manifest.Permissions {
+		scope = strings.TrimSpace(scope)
+		if !strings.HasPrefix(scope, "net:") {
+			continue
+		}
+		if a.permissions.HasDecision(appID, scope) {
+			continue
+		}
+		_, _, _ = a.RequestPermission(appID, scope, "Requested by manifest at app launch")
+	}
+}
+
 // StopPackage stops a running package process by id.
 func (a *App) StopPackage(packageID string) error {
+	a.clearDevResolvedURL(packageID)
 	_ = a.processManager.StopDev(packageID)
 	err := a.processManager.Stop(packageID)
 	if err != nil {
@@ -405,6 +460,34 @@ func (a *App) ResolveScopedPath(appID, relativePath string) (string, error) {
 		return "", errors.New("package not found")
 	}
 	return a.scopeManager.ResolvePath(pkg.DirName, appID, relativePath)
+}
+
+// WriteScopedText writes UTF-8 text to an app-scoped file path validated by host policy.
+func (a *App) WriteScopedText(appID, relativePath, text string) error {
+	resolved, err := a.ResolveScopedPath(appID, relativePath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(resolved), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(resolved, []byte(text), 0o600)
+}
+
+// ReadScopedText reads UTF-8 text from an app-scoped file path validated by host policy.
+func (a *App) ReadScopedText(appID, relativePath string) (map[string]any, error) {
+	resolved, err := a.ResolveScopedPath(appID, relativePath)
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]any{"found": false, "text": ""}, nil
+		}
+		return nil, err
+	}
+	return map[string]any{"found": true, "text": string(data)}, nil
 }
 
 // IframePostToHost receives iframe messages and forwards them to host listeners.
@@ -773,7 +856,7 @@ func (a *App) GetStartupLaunchpad() (AppManifestView, error) {
 	if strings.TrimSpace(pkg.Manifest.WebEntry) == "" {
 		return AppManifestView{}, fmt.Errorf("required package %q has no web_entry", launchpadPackageID)
 	}
-	return packageToManifestView(pkg), nil
+	return a.manifestViewForPackage(pkg), nil
 }
 
 // GetInstalledApps returns app manifests suitable for launchpad installed grid.
@@ -786,12 +869,92 @@ func (a *App) GetInstalledApps() []AppManifestView {
 		if pkg.Manifest == nil {
 			continue
 		}
-		out = append(out, packageToManifestView(pkg))
+		out = append(out, a.manifestViewForPackage(pkg))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
 
+func (a *App) setDevResolvedURL(appID, base string) {
+	a.devResolvedMu.Lock()
+	defer a.devResolvedMu.Unlock()
+	a.devResolvedURL[appID] = strings.TrimSpace(base)
+}
+
+func (a *App) clearDevResolvedURL(appID string) {
+	a.devResolvedMu.Lock()
+	defer a.devResolvedMu.Unlock()
+	delete(a.devResolvedURL, appID)
+}
+
+// manifestDevIFrameURL returns iframe URL and bridge origins, applying a discovered dev-server URL when present.
+func (a *App) manifestDevIFrameURL(pkg *packages.PackageInfo) (u string, origins []string, dev bool) {
+	u, origins, dev = resolvePackageURL(pkg)
+	if !dev || pkg == nil || pkg.Manifest == nil {
+		return u, origins, dev
+	}
+	a.devResolvedMu.RLock()
+	override := a.devResolvedURL[pkg.Manifest.ID]
+	a.devResolvedMu.RUnlock()
+	if override == "" {
+		if dev {
+			return u, process.ExpandLoopbackOrigins(origins), dev
+		}
+		return u, origins, dev
+	}
+	parsed, err := url.Parse(override)
+	if err != nil {
+		return override, process.ExpandLoopbackOrigins(origins), dev
+	}
+	extra := parsed.Scheme + "://" + parsed.Host
+	merged := mergeOriginsUnique(origins, extra)
+	return override, process.ExpandLoopbackOrigins(merged), dev
+}
+
+func mergeOriginsUnique(origins []string, extra string) []string {
+	if strings.TrimSpace(extra) == "" {
+		return origins
+	}
+	for _, o := range origins {
+		if o == extra {
+			return origins
+		}
+	}
+	out := make([]string, 0, len(origins)+1)
+	out = append(out, origins...)
+	return append(out, extra)
+}
+
+func (a *App) manifestViewForPackage(pkg *packages.PackageInfo) AppManifestView {
+	if pkg == nil || pkg.Manifest == nil {
+		return AppManifestView{}
+	}
+	url, origins, dev := a.manifestDevIFrameURL(pkg)
+	icon := resolveManifestIcon(pkg)
+	hashPath := filepath.Join(a.hashDir(), pkg.Manifest.ID+".json")
+	ts, err := packageinstall.EvaluateTrust(pkg.DirPath, hashPath, a.trustedKeysDir())
+	trust := string(ts)
+	if err != nil {
+		trust = string(packageinstall.TrustUnknown)
+	}
+	return AppManifestView{
+		ID:             pkg.Manifest.ID,
+		Name:           pkg.Manifest.Name,
+		Icon:           icon,
+		URL:            url,
+		Description:    "Installed Tiny App",
+		Category:       "installed",
+		AllowedOrigins: origins,
+		Development:    dev,
+		TrustStatus:    trust,
+	}
+}
+
+func (a *App) trustedKeysDir() string {
+	return filepath.Join(a.rootDir, "Temp", "trusted_keys")
+}
+
+// packageToManifestView is used by tests that construct a synthetic App without trust evaluation.
 func packageToManifestView(pkg *packages.PackageInfo) AppManifestView {
 	url, origins, dev := resolvePackageURL(pkg)
 	icon := resolveManifestIcon(pkg)
@@ -822,6 +985,12 @@ func resolvePackageURL(pkg *packages.PackageInfo) (u string, allowed []string, d
 	}
 	d := def.Development
 	devURL := strings.TrimSpace(d.URL)
+	if len(d.Command) > 0 && devURL == "" {
+		origins := make([]string, len(d.AllowedOrigins))
+		copy(origins, d.AllowedOrigins)
+		// With command-only dev config, wait for runtime URL discovery before loading iframe content.
+		return "about:blank", origins, true
+	}
 	if devURL == "" {
 		return fileU, nil, false
 	}

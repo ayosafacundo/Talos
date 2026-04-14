@@ -27,7 +27,6 @@ Top-level directories:
 - `frontend/` - active Wails frontend
 - `frontend_new/` - alternative/new frontend work (not currently the active Wails frontend)
 - `sdk/` - Tiny App SDKs (`go`, `ts`, `rust`)
-- `examples/` - demo tiny app source
 - `Packages/` - discoverable tiny app packages
 - `docs/` - project docs
 
@@ -59,15 +58,17 @@ Main commands:
 
 - `make proto` - regenerate protobuf and gRPC stubs
 - `make verify` - run tests + go build + frontend build
-- `make tiny-demo-build` - build Go tiny demo binary
-- `make tiny-ts-demo-build` - compile TypeScript iframe demo assets
+- `make example-go-app-build` - build Example Go app binary
+- `make example-rust-app-build` - build Example Rust app binary
+- `make example-ts-app-build` - compile Example TypeScript app assets
 - `make dev` - prepare proto/demos then run `wails dev`
 - `make app-build` - full build pipeline ending in `wails build`
 
 Useful clean commands:
 
-- `make tiny-demo-clean`
-- `make tiny-ts-demo-clean`
+- `make example-go-app-clean`
+- `make example-rust-app-clean`
+- `make example-ts-app-clean`
 
 ## 5) Host Runtime Architecture
 
@@ -139,14 +140,17 @@ Packages/My App/
 - Path: `sdk/rust`
 - Baseline API/trait shape.
 
-### Included Demos
+### Included Example Apps
 
-- Go demo:
-  - source: `examples/tinyapps/go-demo/main.go`
-  - package: `Packages/Tiny Go Demo`
-- TypeScript iframe demo:
-  - source: `examples/tinyapps/ts-demo/src/main.ts`
-  - package: `Packages/Tiny TS Demo`
+- Example Go app:
+  - source: `Packages/Example Go App/src/main.go`
+  - package: `Packages/Example Go App`
+- Example Rust app:
+  - source: `Packages/Example Rust App/src/main.rs`
+  - package: `Packages/Example Rust App`
+- Example TypeScript app:
+  - source: `Packages/Example TS App/src/App.tsx`
+  - package: `Packages/Example TS App`
 
 ## 8) Build and Packaging Pipeline
 
@@ -200,8 +204,8 @@ make verify
 - Permission issues:
   - inspect `Temp/permissions.json`
   - re-trigger request through UI if needed
-- TS iframe demo not updating:
-  - run `make tiny-ts-demo-build` and restart app
+- TS iframe example not updating:
+  - run `make example-ts-app-build` and restart app
 
 ## 11) Current Status Snapshot
 
@@ -214,7 +218,7 @@ Implemented:
   - filesystem scope enforcement
   - host-iframe bridge baseline
   - Go/TS/Rust SDK baselines
-  - Go and TS demo tiny apps
+- Go, Rust, and TypeScript example tiny apps
 
 Not finished / still maturing:
 

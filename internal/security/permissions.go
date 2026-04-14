@@ -63,6 +63,20 @@ func (p *Permissions) Set(appID, scope string, granted bool) {
 	p.grants[appID][scope] = granted
 }
 
+// HasDecision reports whether a scope has an explicit persisted decision
+// (granted or denied) for appID.
+func (p *Permissions) HasDecision(appID, scope string) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	scopes, ok := p.grants[appID]
+	if !ok {
+		return false
+	}
+	_, exists := scopes[scope]
+	return exists
+}
+
 // Clear removes a scope entry so the next Request can prompt again (revocation).
 func (p *Permissions) Clear(appID, scope string) {
 	p.mu.Lock()

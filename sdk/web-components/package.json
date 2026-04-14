@@ -1,0 +1,26 @@
+{
+  "name": "@talos/web-components",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./react": {
+      "types": "./react.d.ts",
+      "default": "./react.js"
+    },
+    "./react-types": {
+      "types": "./react-types.d.ts",
+      "default": "./react-types.js"
+    },
+    "./components.css": "./components.css"
+  },
+  "description": "Framework-agnostic Talos UI Web Components",
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

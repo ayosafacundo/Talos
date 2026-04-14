@@ -43,55 +43,53 @@ This file tracks implementation maturity in a release-oriented format.
 - `implemented` TypeScript `IframeBridgeTransport` (v1 bridge + `_talos_bt`)
 - `implemented` Rust gRPC client over UDS (`Client::dial`, hub RPC parity with Go)
 
-### Tiny App Demos
+### Tiny App Examples
 
-- `implemented` Go tiny app demo (`examples/tinyapps/go-demo`, `Packages/Tiny Go Demo`)
-- `implemented` TypeScript iframe demo (`examples/tinyapps/ts-demo`, `Packages/Tiny TS Demo`)
-- `in_progress` multi-app integration scenarios beyond baseline demos
+- `implemented` Example Go app (`Packages/Example Go App`)
+- `implemented` Example Rust app (`Packages/Example Rust App`)
+- `implemented` Example TypeScript iframe app (`Packages/Example TS App`)
+- `implemented` multi-app hub integration coverage (`internal/hub/integration_grpc_test.go`, `make integration-hub`)
 
 ### Build and Dev Experience
 
 - `implemented` Makefile workflow (`proto`, `verify`, demos, `dev`, `app-build`)
 - `implemented` full doc set (`DEVELOPMENT_FULL`, `SDK_GUIDE`, `TINY_APP_INIT`)
-- `in_progress` cleanup/release hygiene across generated artifacts and alternative frontend tracks
+- `implemented` CI aligned with `make verify` (see `.github/workflows/ci.yml`)
 
-## In-Progress Focus Areas
+## Phase 2 follow-ups (non-blocking / stretch)
 
-### 1) Iframe Bridge Hardening
+- Optional: headless `wails dev` smoke in CI.
+- Optional: Node-side gRPC transport for non-iframe TypeScript binaries.
+- Optional: Playwright (or similar) full UI E2E beyond hub integration tests.
 
-Follow-ups:
+**Sign-off checklist:** [docs/PHASE2_SIGNOFF.md](PHASE2_SIGNOFF.md)
 
-- `postMessage` targetOrigin: parent replies use sender `event.origin` when set; SDK iframe transport and host→iframe context menu use `ancestorOrigins` / iframe URL origin when available, else `"*"`.
-- Hub gRPC integration tests with a real socket: `make integration-hub` or `scripts/run_integration_hub.sh` (optional env `TALOS_TEST_SOCKET`).
+## Phase 3 snapshot (distribution and trust)
 
-### 2) TS and Rust SDK Runtime Completion
+- `implemented` (baseline) package hash manifests and install-time writes (`internal/packageinstall/hash.go`)
+- `implemented` optional Ed25519 package signatures and trust evaluation (`internal/packageinstall/trust.go`, `Temp/trusted_keys/`)
+- `implemented` update channel fetch + apply (`internal/updates`)
+- `implemented` HTTP package catalog + Launchpad browse (`internal/packages/repository/http.go`, `TALOS_CATALOG_URL`)
 
-Follow-ups:
+See [docs/PHASE3.md](PHASE3.md) for operator notes.
 
-- CI runs hub integration tests with `TALOS_TEST_SOCKET` (`.github/workflows/ci.yml`); optional extension: full `wails dev` smoke.
-- optional Node-side gRPC transport for non-iframe TS binaries
+## Phase 4 (post–Phase 3)
 
-### 3) Permission UX and Policy Completeness
+Roadmap and exit criteria: [docs/PHASE4.md](PHASE4.md).
 
-Follow-ups:
+## Phase 5 (documentation generation)
 
-- async permission RPC: first `RequestPermission` / hub call blocks until Allow/Deny completes (`security.MsgPendingHostApproval` + `CompletePendingDecision`).
-- permission audit JSONL at `Temp/logs/permission_audit.jsonl`; `ListPermissionAudit` for export/UI.
+- `implemented` architecture guide: [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+- `implemented` plugin developer guide: [docs/PLUGIN_GUIDE.md](PLUGIN_GUIDE.md)
+- `implemented` manifest reference: [docs/MANIFEST_SPEC.md](MANIFEST_SPEC.md)
 
-### 4) Integration/E2E Validation
+## Phase 6 (final polish / release readiness)
 
-Intended:
+- `implemented` release polish checklist: [docs/PHASE6_RELEASE_POLISH.md](PHASE6_RELEASE_POLISH.md)
 
-- confidence that host, SDKs, demos, and policy enforcement work together under realistic scenarios.
+## Exit Signals for Phase 2 (reference)
 
-Needs:
-
-- end-to-end scenarios with multiple concurrent tiny apps
-- cross-feature regression suite (state, route, broadcast, fs scoping, permission transitions)
-
-## Exit Signals for Phase 2
-
-- iframe bridge hardened and policy-validated
-- TS/Rust transport layers functionally complete with tests
-- permission lifecycle complete (grant/deny/revoke UX)
-- multi-app integration suite passing reliably
+- iframe bridge hardened and policy-validated — see [docs/dev/iframe-bridge.md](dev/iframe-bridge.md)
+- TS/Rust transport layers functionally complete with tests — see `sdk/ts`, `sdk/rust` READMEs
+- permission lifecycle complete (grant/deny/revoke UX) — Launchpad + audit JSONL
+- multi-app integration suite passing reliably — `make integration-hub`

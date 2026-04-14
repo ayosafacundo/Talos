@@ -2,6 +2,8 @@
 
 gRPC hub client over **Unix domain sockets** (same contract as `sdk/go/talos`).
 
+**Windows:** `Client::dial` is not implemented for named pipes yet; use the Go SDK or TS iframe bridge on Windows until pipe transport is added.
+
 ```rust
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

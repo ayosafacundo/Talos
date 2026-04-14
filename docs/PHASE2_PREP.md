@@ -2,6 +2,8 @@
 
 This document started as readiness planning and now tracks Phase 2 execution progress.
 
+**Authoritative status:** use [docs/STATUS.md](STATUS.md) and the [Phase 2 sign-off checklist](PHASE2_SIGNOFF.md). This file’s historical checkboxes describe deliverables; where they conflict with STATUS, prefer STATUS.
+
 ## Goal
 
 Phase 2 introduces the Talos SDK and runtime enforcement surfaces:
@@ -21,8 +23,10 @@ What is included now:
 
 What is not fully complete yet:
 
-- Full Rust and TS gRPC transport implementations
-- Production-grade iframe policy/allowlist hardening
+- **Rust:** Windows named-pipe transport for the SDK (see [sdk/rust/README.md](../sdk/rust/README.md)); Unix is supported.
+- **TypeScript:** Node-side native gRPC transport (optional; iframe bridge is primary).
+
+Bridge policy and allowlists are implemented in Launchpad + [docs/dev/iframe-bridge.md](dev/iframe-bridge.md).
 
 ## Proposed Deliverable Order
 
@@ -114,6 +118,7 @@ What is not fully complete yet:
 - [x] TS SDK baseline wrapper added in `sdk/ts`.
 - [x] Rust SDK baseline wrapper added in `sdk/rust`.
 - [x] Initial Wails <-> iframe bridge event flow wired in host/frontend.
-- [x] Go tiny app demo implemented in `examples/tinyapps/go-demo`.
-- [x] TypeScript tiny app iframe demo implemented in `examples/tinyapps/ts-demo`.
+- [x] Example Go app implemented in `Packages/Example Go App`.
+- [x] Example Rust app implemented in `Packages/Example Rust App`.
+- [x] Example TypeScript iframe app implemented in `Packages/Example TS App`.
 - [x] SDK and tiny-app initialization docs added.

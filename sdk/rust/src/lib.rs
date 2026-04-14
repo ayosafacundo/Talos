@@ -175,3 +175,16 @@ fn parse_unix_socket_path(socket_url: &str) -> anyhow::Result<&str> {
     }
     Ok(socket_url.trim_start_matches(prefix))
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::parse_unix_socket_path;
+
+    #[test]
+    fn parse_unix_socket_path_accepts_unix_scheme() {
+        assert_eq!(
+            parse_unix_socket_path("unix:///tmp/talos.sock").unwrap(),
+            "/tmp/talos.sock"
+        );
+    }
+}

@@ -18,10 +18,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: Packages/Launchpad/package-lock.json
-      - name: Go test and build
-        run: make test build
-      - name: Launchpad unit tests
-        run: make launchpad-test
+          cache-dependency-path: |
+            Packages/Launchpad/package-lock.json
+            sdk/ts/package-lock.json
+      - name: Verify (Go tests, build, Launchpad + TS SDK tests, production gate)
+        run: make verify
       - name: Hub gRPC integration tests
         run: bash scripts/run_integration_hub.sh

@@ -4,8 +4,10 @@ import "context"
 
 // Descriptor is a remote catalog entry (future: curated registry / store).
 type Descriptor struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Source     string `json:"source,omitempty"`
+	InstallURL string `json:"install_url,omitempty"`
 }
 
 // Catalog lists installable remote packages.

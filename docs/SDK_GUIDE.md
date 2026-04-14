@@ -19,10 +19,11 @@ Tiny Apps never talk to each other directly. All calls flow through the host hub
 
 Go SDK is the most complete implementation right now.
 
-TypeScript runtime demo is available at:
+Reference example apps are available at:
 
-- Package: `Packages/Tiny TS Demo`
-- Source: `examples/tinyapps/ts-demo/src/main.ts`
+- Go: `Packages/Example Go App` (`Packages/Example Go App/src/main.go`)
+- Rust: `Packages/Example Rust App` (`Packages/Example Rust App/src/main.rs`)
+- TypeScript: `Packages/Example TS App` (`Packages/Example TS App/src/App.tsx`)
 
 ## Required Runtime Environment
 
@@ -113,7 +114,7 @@ make verify
 
 ## TypeScript Iframe Bridge Notes
 
-The TypeScript demo uses a host bridge transport:
+The TypeScript example app uses a host bridge transport:
 
 - Iframe sends `talos:sdk:req` with `channel: talos:sdk:v1` and `bridge_token` (from `_talos_bt` in the iframe URL).
 - Host shell validates the sender iframe + token, then calls bound Go methods using the trusted manifest id.

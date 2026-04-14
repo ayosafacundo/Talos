@@ -3,7 +3,7 @@ SHELL := /bin/bash
 GO_BIN := $(shell go env GOPATH)/bin
 PROTO_FILE := api/proto/talos/hub/v1/hub.proto
 
-.PHONY: help install-tools deps proto test build verify production-gate launchpad-test tiny-demo-build tiny-demo-clean tiny-ts-demo-build tiny-ts-demo-clean app-build dev talos-sync-css integration-hub
+.PHONY: help install-tools deps proto test build verify production-gate launchpad-test sdk-ts-test example-go-app-build example-go-app-clean example-rust-app-build example-rust-app-clean example-ts-app-build example-ts-app-clean app-build dev talos-sync-css integration-hub
 
 help:
 	@echo "Available targets:"
@@ -12,15 +12,18 @@ help:
 	@echo "  deps           npm install Launchpad + isolate npm for Go + go mod tidy"
 	@echo "  test           Run Go tests"
 	@echo "  build          Build Go packages"
-	@echo "  verify         Run all validation checks (Go + Launchpad + production gate)"
+	@echo "  verify         Run all validation checks (Go + Launchpad + TS SDK + production gate)"
 	@echo "  production-gate  go test internal/buildmode with -tags=production"
 	@echo "  launchpad-test Run Launchpad (Vitest) unit tests"
+	@echo "  sdk-ts-test    Run Vitest for sdk/ts"
 	@echo "  integration-hub Run hub gRPC integration tests"
 	@echo "  frontend-build Build Launchpad (Vite) + sync sdk/talos CSS"
-	@echo "  tiny-demo-build Build Go Tiny Demo binary (needs examples/tinyapps/go-demo)"
-	@echo "  tiny-demo-clean Remove Go Tiny Demo built binary"
-	@echo "  tiny-ts-demo-build Build TS Tiny Demo web assets (needs examples/tinyapps/ts-demo)"
-	@echo "  tiny-ts-demo-clean Remove TypeScript Tiny Demo generated app.js"
+	@echo "  example-go-app-build Validate Example Go app source build"
+	@echo "  example-go-app-clean Remove Example Go app binary"
+	@echo "  example-rust-app-build Validate Example Rust app source build"
+	@echo "  example-rust-app-clean Remove Example Rust app binary"
+	@echo "  example-ts-app-build Build Example TypeScript app web assets"
+	@echo "  example-ts-app-clean Remove Example TypeScript app generated assets"
 	@echo "  app-build        Build full Talos app and demos (wails build -tags=production)"
 	@echo "  dev              Run Talos in development mode (proto + frontend-build + wails dev)"
 	@echo "  talos-sync-css   Copy Talos UI CSS from Launchpad to sdk/talos/"
@@ -50,7 +53,11 @@ test:
 build:
 	go build ./...
 
-verify: test build launchpad-test production-gate
+verify: test build launchpad-test sdk-ts-test production-gate
+
+sdk-ts-test:
+	npm --prefix sdk/ts install
+	npm --prefix sdk/ts test
 
 # Ensures release-tagged buildmode always disables development surfaces.
 production-gate:
@@ -79,33 +86,43 @@ launchpad-test:
 integration-hub:
 	go test ./internal/hub/ -tags=integration -count=1 -v
 
-# Tiny app demos (sources live under examples/tinyapps/* when present; see docs/TINY_APP_INIT.md)
-TINY_GO_SRC := examples/tinyapps/go-demo
-TINY_GO_OUT := Packages/Tiny Go Demo/bin/tiny-go-demo
-TINY_TS_SRC := examples/tinyapps/ts-demo
+# Example mini apps (one per SDK language)
+EXAMPLE_GO_SRC := Packages/Example Go App/src
+EXAMPLE_RUST_SRC := Packages/Example Rust App
+EXAMPLE_TS_SRC := Packages/Example TS App
 
-tiny-demo-build:
-	@if [ -d "$(TINY_GO_SRC)" ]; then \
-	  mkdir -p "Packages/Tiny Go Demo/bin" && \
-	  ( cd "$(TINY_GO_SRC)" && go build -trimpath -o "$(CURDIR)/$(TINY_GO_OUT)" . ); \
-	  echo "Built $(TINY_GO_OUT)"; \
+example-go-app-build:
+	@if [ -d "$(EXAMPLE_GO_SRC)" ]; then \
+	  ( cd "$(EXAMPLE_GO_SRC)" && go build -trimpath . ) && \
+	  echo "Validated Example Go app source build"; \
 	else \
-	  echo "make: $(TINY_GO_SRC) not in tree — skip tiny-demo-build"; \
+	  echo "make: $(EXAMPLE_GO_SRC) not in tree — skip example-go-app-build"; \
 	fi
 
-tiny-demo-clean:
-	rm -f "$(TINY_GO_OUT)"
+example-go-app-clean:
+	@echo "No generated Go artifacts to clean (wrapper-based runtime)."
 
-tiny-ts-demo-build:
-	@if [ -f "$(TINY_TS_SRC)/package.json" ]; then \
-	  npm --prefix "$(TINY_TS_SRC)" install && npm --prefix "$(TINY_TS_SRC)" run build; \
-	  echo "Built Tiny TS Demo under Packages/Tiny TS Demo/dist"; \
+example-rust-app-build:
+	@if [ -f "$(EXAMPLE_RUST_SRC)/Cargo.toml" ]; then \
+	  cargo build --release --manifest-path "$(EXAMPLE_RUST_SRC)/Cargo.toml" && \
+	  echo "Validated Example Rust app source build"; \
 	else \
-	  echo "make: $(TINY_TS_SRC) not in tree — skip tiny-ts-demo-build"; \
+	  echo "make: $(EXAMPLE_RUST_SRC) not in tree — skip example-rust-app-build"; \
 	fi
 
-tiny-ts-demo-clean:
-	rm -f "Packages/Tiny TS Demo/dist/app.js"
+example-rust-app-clean:
+	@echo "No generated Rust artifacts to clean (wrapper-based runtime)."
+
+example-ts-app-build:
+	@if [ -f "$(EXAMPLE_TS_SRC)/package.json" ]; then \
+	  npm --prefix "$(EXAMPLE_TS_SRC)" install && npm --prefix "$(EXAMPLE_TS_SRC)" run build; \
+	  echo "Built Example TS app under Packages/Example TS App/dist"; \
+	else \
+	  echo "make: $(EXAMPLE_TS_SRC) not in tree — skip example-ts-app-build"; \
+	fi
+
+example-ts-app-clean:
+	rm -f "Packages/Example TS App/dist/index.html" "Packages/Example TS App/dist/app.js" "Packages/Example TS App/dist/app.css"
 
 dev: proto frontend-build
 	rm -rf Temp/logs

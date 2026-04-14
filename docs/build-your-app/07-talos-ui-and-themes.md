@@ -1,6 +1,6 @@
-# 07 — Talos UI, tokens, and themes
+# 07 — Talos UI, tokens, components, and themes
 
-Talos ships a small **design-token** layer plus optional **utility classes** (Tailwind-like ergonomics) so tiny apps can style consistently with the host. The host Launchpad loads tokens and utilities from its bundle; **iframe apps must ship the same CSS files** in their own `dist/` because browser iframes do not inherit the parent document’s stylesheets.
+Talos ships a design-token layer plus optional utility classes and an evolving component layer. The host Launchpad loads host theme assets, while iframe apps should include Talos UI assets in their own bundle because iframes do not inherit parent stylesheets.
 
 ## Layers
 
@@ -9,7 +9,9 @@ Talos ships a small **design-token** layer plus optional **utility classes** (Ta
 | **tokens** (`tokens.css`) | Canonical CSS variables: `--talos-color-*`, `--talos-radius-*`, spacing, shadows. |
 | **legacy-alias** (`legacy-alias.css`) | Maps older Launchpad names (`--bg-primary`, …) to Talos tokens for existing host CSS. |
 | **utilities** (`utilities.css`) | Composable classes: `talos-bg-primary`, `talos-text-muted`, `talos-rounded-md`, … |
+| **components** (`components.css` + web components) | Stable component primitives (`talos-card`, `talos-button`, …) designed for theme variants. |
 | **Presets** (optional linked theme) | Small files under Launchpad `public/themes/*.css` that override **only** `--talos-*` values (e.g. `minecraft.css`, `dark.css`). |
+| **Variant manifests** (`public/theme-assets/*.json`) | Maps selected host theme to component variant assets for Tiny Apps. |
 
 ## Using tokens and utilities in a tiny app
 
@@ -44,10 +46,14 @@ Talos ships a small **design-token** layer plus optional **utility classes** (Ta
 
 - A **preset** is a short `:root { --talos-*: … }` file selected in Launchpad settings. It does not redefine layout; it only recolors tokens.
 - To add a preset, place `Packages/Launchpad/public/themes/<name>.css`, rebuild Launchpad (`make frontend-build` or `npm run build` in `Packages/Launchpad`), and pick it in **Settings → Themes**.
+- A **variant theme** maps host theme selection to component-level visual variants (buttons/cards/inputs/panels). This is the asset-driven path for shared app styling.
+
+See [ASSET_DRIVEN_THEMES.md](../ASSET_DRIVEN_THEMES.md).
+Component catalog roadmap: [ASSET_DRIVEN_THEMES.md#ready-to-use-component-plan](../ASSET_DRIVEN_THEMES.md#ready-to-use-component-plan)
 
 ## Host theme changes and iframes
 
-Changing the host theme updates Launchpad only. To react in an app, listen for host `postMessage` events you define (for example via hub `Broadcast`) and swap classes or variables in your iframe document.
+Changing the host theme updates Launchpad and can also notify Tiny Apps through runtime theme events. Apps using Talos component/runtime helpers can apply updates without full page reload.
 
 ## Keeping `sdk/talos` in sync
 

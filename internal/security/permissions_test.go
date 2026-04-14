@@ -49,3 +49,19 @@ func TestRequestBlocksUntilCompletePendingDecision(t *testing.T) {
 		t.Fatal("expected scope granted after wait")
 	}
 }
+
+func TestHasDecision(t *testing.T) {
+	t.Parallel()
+
+	p := NewPermissions(nil)
+	if p.HasDecision("app.x", "net:internet") {
+		t.Fatal("did not expect decision before set")
+	}
+	p.Set("app.x", "net:internet", false)
+	if !p.HasDecision("app.x", "net:internet") {
+		t.Fatal("expected decision after set(false)")
+	}
+	if p.IsGranted("app.x", "net:internet") {
+		t.Fatal("set(false) must not be granted")
+	}
+}

@@ -14,7 +14,7 @@ binary: bin/my-app
 
 ```bash
 mkdir -p "Packages/My App/bin"
-go build -o "Packages/My App/bin/my-app" ./examples/tinyapps/my-app
+go build -o "Packages/My App/bin/my-app" ./Packages/My\ App/src
 chmod +x "Packages/My App/bin/my-app"
 ```
 

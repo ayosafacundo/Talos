@@ -97,9 +97,12 @@ development:
   command: ["npm", "run", "dev"]
 `)
 
-	_, err := Parse(raw)
-	if err == nil {
-		t.Fatal("expected error when development.command without url")
+	def, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("expected command-only development block to be valid, got %v", err)
+	}
+	if def.Development == nil || len(def.Development.Command) == 0 {
+		t.Fatal("expected development command to be preserved")
 	}
 }
 

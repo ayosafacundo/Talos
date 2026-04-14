@@ -150,3 +150,30 @@ func TestIntegrationHubMultiAppScenario(t *testing.T) {
 		t.Fatalf("resolve: err=%v p=%q", err, p)
 	}
 }
+
+func TestIntegrationResolvePathDeniedForUnscopedApp(t *testing.T) {
+	url := integrationSocketURL(t)
+	s := NewServer(url)
+	s.SetResolvePathHook(func(appID, relativePath string) (string, bool, error) {
+		if appID == "app.a" {
+			return filepath.Join("/tmp/Packages/AppA/data", relativePath), true, nil
+		}
+		return "", false, nil
+	})
+	if err := s.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(s.Stop)
+
+	ctx := context.Background()
+	cli, err := talos.Dial(ctx, url)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	t.Cleanup(func() { _ = cli.Close() })
+
+	_, err = cli.ResolvePath(ctx, "app.unscoped", "x.txt")
+	if err == nil {
+		t.Fatal("expected resolve path error for unscoped app")
+	}
+}

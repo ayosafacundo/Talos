@@ -7,6 +7,8 @@ export const ALLOWED_SDK_METHODS = new Set([
   "loadState",
   "requestPermission",
   "resolvePath",
+  "readScopedText",
+  "writeScopedText",
   "sendMessage",
   "broadcast",
   "getInstalledApps",
@@ -121,4 +123,79 @@ export function buildBridgeResponse(
     result,
     error,
   };
+}
+
+/** Default reply target when no http(s) allowlist applies. */
+export function postMessageTargetOrigin(event: MessageEvent): string {
+  const o = event.origin;
+  if (!o || o === "null") return "*";
+  return o;
+}
+
+/** Normalize an origin or URL string for comparison (http/https loopback vs manifest allowlist). */
+export function normalizeWebOrigin(raw: string): string {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  try {
+    return new URL(s).origin;
+  } catch {
+    return s.replace(/\/$/, "");
+  }
+}
+
+/** When the manifest lists http(s) origins, require incoming postMessage to match. */
+export function isMessageOriginAllowed(eventOrigin: string, allowed?: string[]): boolean {
+  if (!allowed || allowed.length === 0) return true;
+  const o = eventOrigin === "null" ? "" : normalizeWebOrigin(eventOrigin);
+  if (!o) return false;
+  return allowed.some((a) => normalizeWebOrigin(a) === o);
+}
+
+/** Target for host replies: use sender origin when allowlisted, else legacy behavior. */
+export function replyPostMessageTarget(event: MessageEvent, allowed?: string[]): string {
+  if (!allowed || allowed.length === 0) {
+    return postMessageTargetOrigin(event);
+  }
+  const o = event.origin;
+  if (!o || o === "null") return "*";
+  if (!isMessageOriginAllowed(o, allowed)) return "*";
+  return normalizeWebOrigin(o);
+}
+
+/** Target when posting from host into an iframe (no manifest allowlist). */
+export function postMessageTargetForIframe(iframe: HTMLIFrameElement): string {
+  try {
+    const u = new URL(iframe.src);
+    if (u.origin && u.origin !== "null") return u.origin;
+  } catch {
+    /* ignore */
+  }
+  return "*";
+}
+
+export type BridgeOriginContext = {
+  allowed_origins?: string[];
+};
+
+/** Prefer iframe src origin when it appears in allowlist; else first allowlist entry; else generic iframe target. */
+export function postMessageTargetForAppInstance(
+  instance: BridgeOriginContext,
+  iframe: HTMLIFrameElement,
+): string {
+  const allowed = instance.allowed_origins;
+  if (allowed && allowed.length > 0) {
+    try {
+      const u = new URL(iframe.src);
+      if (u.origin && u.origin !== "null") {
+        const no = normalizeWebOrigin(u.origin);
+        if (allowed.some((a) => normalizeWebOrigin(a) === no)) {
+          return no;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return normalizeWebOrigin(allowed[0]);
+  }
+  return postMessageTargetForIframe(iframe);
 }

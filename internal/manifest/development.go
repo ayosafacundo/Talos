@@ -52,9 +52,6 @@ func (d *Development) validate() error {
 			return errors.New("manifest: development.url host must be localhost, 127.0.0.1, or ::1")
 		}
 	}
-	if len(d.Command) > 0 && d.URL == "" {
-		return errors.New("manifest: development.url is required when development.command is set")
-	}
 	origins, err := d.normalizedAllowedOrigins()
 	if err != nil {
 		return err

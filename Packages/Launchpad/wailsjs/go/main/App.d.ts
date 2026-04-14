@@ -3,7 +3,13 @@
 import {main} from '../models';
 import {packages} from '../models';
 
+export function ApplyUpdateFromArtifactURL(arg1:string):Promise<string>;
+
 export function BroadcastMessage(arg1:string,arg2:string,arg3:string):Promise<number>;
+
+export function CheckForUpdates(arg1:string):Promise<Array<main.UpdateEntryView>>;
+
+export function DefaultUpdateChannelURL():Promise<string>;
 
 export function DenyPermission(arg1:string,arg2:string):Promise<void>;
 
@@ -29,6 +35,8 @@ export function HubSocketURL():Promise<string>;
 
 export function IframePostToHost(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function ImportTrustedPublisherKey(arg1:string,arg2:string):Promise<void>;
+
 export function InstallPackageFromGitHub(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function InstallPackageFromURL(arg1:string):Promise<string>;
@@ -43,6 +51,8 @@ export function ListPermissionEntries():Promise<Array<main.PermissionEntry>>;
 
 export function ListRepositoryPackages():Promise<Array<main.RemotePackageDescriptor>>;
 
+export function ListTrustedPublisherKeyNames():Promise<Array<string>>;
+
 export function LoadAppState(arg1:string):Promise<Array<number>>;
 
 export function LoadAppStateBase64(arg1:string):Promise<string>;
@@ -51,9 +61,13 @@ export function LoadAppStateText(arg1:string):Promise<string>;
 
 export function LoadUserPrefs():Promise<main.UserPrefs>;
 
+export function ParanoidPackageTrust():Promise<boolean>;
+
 export function PickZipAndInstall():Promise<string>;
 
 export function ReadLogTail(arg1:string,arg2:number):Promise<string>;
+
+export function ReadScopedText(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function RequestPermission(arg1:string,arg2:string,arg3:string):Promise<boolean>;
 
@@ -78,3 +92,5 @@ export function SaveUserPrefs(arg1:main.UserPrefs):Promise<void>;
 export function StartPackage(arg1:string):Promise<void>;
 
 export function StopPackage(arg1:string):Promise<void>;
+
+export function WriteScopedText(arg1:string,arg2:string,arg3:string):Promise<void>;

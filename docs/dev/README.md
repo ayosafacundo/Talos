@@ -32,8 +32,9 @@ Common targets:
 
 - `make test` - run Go tests only.
 - `make build` - compile Go packages only.
-- `make tiny-demo-build` - rebuild Go tiny app package binary.
-- `make tiny-ts-demo-build` - rebuild TS tiny app bundle.
+- `make example-go-app-build` - rebuild Example Go app package binary.
+- `make example-rust-app-build` - rebuild Example Rust app package binary.
+- `make example-ts-app-build` - rebuild Example TypeScript app bundle.
 - `make app-build` - full build (proto + demos + verify + wails build).
 
 ## Runtime model in one paragraph

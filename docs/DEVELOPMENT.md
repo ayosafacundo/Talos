@@ -22,6 +22,8 @@ From repo root, use `make deps` (runs `npm install` for Launchpad, [`scripts/ens
 
 If you run `go mod tidy` yourself, run `npm --prefix Packages/Launchpad install` and `bash scripts/ensure-npm-go-modules.sh` first whenever `node_modules` changes.
 
+**CI parity:** `make verify` runs Go tests, `go build ./...`, Launchpad Vitest, **`npm --prefix sdk/ts test`**, and the production buildmode gate. Hub socket integration tests are `bash scripts/run_integration_hub.sh` (also run in CI after verify).
+
 From frontend:
 
 ```bash
@@ -85,30 +87,32 @@ make verify
 
 - Persisted permission grants: `Temp/permissions.json`
 
-## Demo Tiny App
+## Example Tiny Apps
 
-Build bundled Go demo tiny app:
+Build bundled Go example app:
 
 ```bash
-make tiny-demo-build
+make example-go-app-build
 ```
 
-Build bundled TypeScript iframe demo app:
+Build bundled Rust example app:
 
 ```bash
-make tiny-ts-demo-build
+make example-rust-app-build
 ```
 
-Clean built binary:
+Build bundled TypeScript iframe example app:
 
 ```bash
-make tiny-demo-clean
+make example-ts-app-build
 ```
 
-Clean TypeScript generated web file:
+Clean generated binaries/assets:
 
 ```bash
-make tiny-ts-demo-clean
+make example-go-app-clean
+make example-rust-app-clean
+make example-ts-app-clean
 ```
 
 ## Build Full App

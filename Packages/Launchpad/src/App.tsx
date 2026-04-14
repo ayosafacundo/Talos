@@ -8,14 +8,19 @@ import {
   GrantPermission,
   InstallPackageFromGitHub,
   InstallPackageFromURL,
+  CheckForUpdates,
+  DefaultUpdateChannelURL,
+  ListPermissionAudit,
   ListPermissionEntries,
   ListRepositoryPackages,
   LoadUserPrefs,
+  ParanoidPackageTrust,
   PickZipAndInstall,
   SaveUserPrefs,
   GetStoreApps,
   GetStartupLaunchpad,
   LoadAppStateBase64,
+  ReadScopedText,
   RequestPermissionDecision,
   ResolveScopedPath,
   RevokePermission,
@@ -23,6 +28,7 @@ import {
   SaveAppStateBase64,
   StartPackage,
   StopPackage,
+  WriteScopedText,
 } from "../wailsjs/go/main/App";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 import type { main } from "../wailsjs/go/models";
@@ -30,7 +36,10 @@ import {
   BRIDGE_CHANNEL,
   buildBridgeResponse,
   isAllowedMethod,
+  isMessageOriginAllowed,
   parseBridgeRequest,
+  postMessageTargetForAppInstance,
+  replyPostMessageTarget,
   resolveTrustedSender,
 } from "./bridge";
 import { wailsShellReady } from "./wails-env";
@@ -72,6 +81,55 @@ type ContextMenuItem = {
   action: () => void | Promise<void>;
 };
 
+type ThemeVariantManifest = {
+  schema_version: number;
+  theme_name: string;
+  variant_id: string;
+  display_name: string;
+  components_css_href?: string;
+  notes?: string;
+};
+
+const FALLBACK_THEME_VARIANTS: Record<string, ThemeVariantManifest> = {
+  minecraft: {
+    schema_version: 1,
+    theme_name: "minecraft",
+    variant_id: "core.minecraft",
+    display_name: "Minecraft Core",
+    components_css_href: "/theme-assets/core.minecraft.components.css",
+  },
+  dark: {
+    schema_version: 1,
+    theme_name: "dark",
+    variant_id: "core.dark",
+    display_name: "Dark Core",
+    components_css_href: "/theme-assets/core.dark.components.css",
+  },
+  light: {
+    schema_version: 1,
+    theme_name: "light",
+    variant_id: "core.light",
+    display_name: "Light Core",
+    components_css_href: "/theme-assets/core.light.components.css",
+  },
+};
+
+async function loadThemeVariant(themeName: string): Promise<ThemeVariantManifest> {
+  const key = String(themeName || "").trim() || "minecraft";
+  try {
+    const resp = await fetch(`./theme-assets/${encodeURIComponent(key)}.json`, { cache: "no-cache" });
+    if (resp.ok) {
+      const data = await resp.json() as ThemeVariantManifest;
+      if (data?.theme_name && data?.variant_id) {
+        return data;
+      }
+    }
+  } catch {
+    // Fallback below.
+  }
+  return FALLBACK_THEME_VARIANTS[key] || FALLBACK_THEME_VARIANTS.minecraft;
+}
+
 function withReload(url: string): string {
   if (!url) return "";
   const sep = url.includes("?") ? "&" : "?";
@@ -84,76 +142,25 @@ function withBridgeToken(url: string, token: string): string {
   return `${url}${sep}_talos_bt=${encodeURIComponent(token)}`;
 }
 
+function withThemeSnapshot(url: string, themeName: string, variant: ThemeVariantManifest): string {
+  if (!url) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const themeHref = `${origin}/themes/${encodeURIComponent(themeName)}.css`;
+  const componentsHref = variant.components_css_href
+    ? `${origin}${variant.components_css_href}`
+    : `${origin}/talos/components.css`;
+  return `${url}${sep}_talos_theme=${encodeURIComponent(themeName)}&` +
+    `_talos_theme_variant=${encodeURIComponent(variant.variant_id)}&` +
+    `_talos_theme_href=${encodeURIComponent(themeHref)}&` +
+    `_talos_components_href=${encodeURIComponent(componentsHref)}`;
+}
+
 function newBridgeToken(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-}
-
-function postMessageTargetOrigin(event: MessageEvent): string {
-  const o = event.origin;
-  if (!o || o === "null") return "*";
-  return o;
-}
-
-function normalizeWebOrigin(raw: string): string {
-  const s = String(raw || "").trim();
-  if (!s) return "";
-  try {
-    return new URL(s).origin;
-  } catch {
-    return s.replace(/\/$/, "");
-  }
-}
-
-/** When the manifest lists http(s) origins, require incoming postMessage to match. */
-function isMessageOriginAllowed(eventOrigin: string, allowed?: string[]): boolean {
-  if (!allowed || allowed.length === 0) return true;
-  const o = eventOrigin === "null" ? "" : normalizeWebOrigin(eventOrigin);
-  if (!o) return false;
-  return allowed.some((a) => normalizeWebOrigin(a) === o);
-}
-
-/** Target for host replies: use sender origin when allowlisted, else legacy behavior. */
-function replyPostMessageTarget(event: MessageEvent, allowed?: string[]): string {
-  if (!allowed || allowed.length === 0) {
-    return postMessageTargetOrigin(event);
-  }
-  const o = event.origin;
-  if (!o || o === "null") return "*";
-  if (!isMessageOriginAllowed(o, allowed)) return "*";
-  return normalizeWebOrigin(o);
-}
-
-/** Target origin when the parent posts into an app iframe (tighten when URL has a real origin). */
-function postMessageTargetForIframe(iframe: HTMLIFrameElement): string {
-  try {
-    const u = new URL(iframe.src);
-    if (u.origin && u.origin !== "null") return u.origin;
-  } catch {
-    /* ignore */
-  }
-  return "*";
-}
-
-function postMessageTargetForAppInstance(instance: AppInstance, iframe: HTMLIFrameElement): string {
-  const allowed = instance.allowed_origins;
-  if (allowed && allowed.length > 0) {
-    try {
-      const u = new URL(iframe.src);
-      if (u.origin && u.origin !== "null") {
-        const no = normalizeWebOrigin(u.origin);
-        if (allowed.some((a) => normalizeWebOrigin(a) === no)) {
-          return no;
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-    return normalizeWebOrigin(allowed[0]);
-  }
-  return postMessageTargetForIframe(iframe);
 }
 
 function isLikelyAssetPath(value: string): boolean {
@@ -182,6 +189,39 @@ function iconURLForApp(app?: main.AppManifestView): string {
   } catch {
     return "";
   }
+}
+
+function formatTrustStatus(ts: string): string {
+  switch (ts) {
+    case "ok":
+      return "integrity OK";
+    case "tampered":
+      return "tampered";
+    case "unsigned":
+      return "unsigned";
+    case "signed_ok":
+      return "signed";
+    case "signed_invalid":
+      return "bad signature";
+    case "unknown":
+      return "unknown integrity";
+    default:
+      return ts;
+  }
+}
+
+function userFacingFetchError(err: unknown): string {
+  const msg = String(err || "");
+  if (msg.includes("offline or DNS issue")) {
+    return `${msg}\nHint: verify network connectivity and the configured HTTPS URL.`;
+  }
+  if (msg.includes("HTTP ")) {
+    return `${msg}\nHint: check server status and endpoint path.`;
+  }
+  if (msg.includes("invalid channel JSON") || msg.includes("invalid catalog JSON")) {
+    return `${msg}\nHint: validate that the endpoint returns a JSON array with expected fields.`;
+  }
+  return msg;
 }
 
 function themeHref(themeName: string): string {
@@ -222,6 +262,10 @@ export default function App(): React.ReactElement {
   } | null>(null);
   const [permissionHistory, setPermissionHistory] = useState<PermissionHistoryItem[]>([]);
   const [permissionEntries, setPermissionEntries] = useState<main.PermissionEntry[]>([]);
+  const [permissionAudit, setPermissionAudit] = useState<main.PermissionAuditEntry[]>([]);
+  const [hostBanner, setHostBanner] = useState("");
+  const [updateChannelURL, setUpdateChannelURL] = useState("");
+  const [updateCheckResult, setUpdateCheckResult] = useState<string>("");
   const [installUiEnabled, setInstallUiEnabled] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
   const [installBusy, setInstallBusy] = useState(false);
@@ -230,7 +274,9 @@ export default function App(): React.ReactElement {
   const [ghRepo, setGhRepo] = useState("");
   const [ghRef, setGhRef] = useState("");
   const [repoBrowse, setRepoBrowse] = useState<main.RemotePackageDescriptor[]>([]);
+  const [repoBrowseError, setRepoBrowseError] = useState("");
   const [appContextOptions, setAppContextOptions] = useState<Record<string, AppMenuOption[]>>({});
+  const [activeThemeVariant, setActiveThemeVariant] = useState<ThemeVariantManifest>(FALLBACK_THEME_VARIANTS.minecraft);
   const [contextMenuState, setContextMenuState] = useState<{
     visible: boolean;
     x: number;
@@ -276,9 +322,10 @@ export default function App(): React.ReactElement {
     applyTheme(selectedTheme);
   }
 
-  async function reloadPermissionEntries(): Promise<void> {
-    const rows = await ListPermissionEntries();
+  async function reloadPermissionsSettings(): Promise<void> {
+    const [rows, audit] = await Promise.all([ListPermissionEntries(), ListPermissionAudit(200)]);
     setPermissionEntries(rows ?? []);
+    setPermissionAudit(audit ?? []);
   }
 
   function hideContextMenu(): void {
@@ -378,22 +425,42 @@ export default function App(): React.ReactElement {
   }
 
   async function launchApp(manifest: main.AppManifestView): Promise<void> {
+    const paranoid = await ParanoidPackageTrust();
+    if (paranoid && String(manifest.trust_status || "") === "tampered") {
+      setHostBanner("This package failed integrity verification (tampered). Reinstall or remove it.");
+      return;
+    }
+    setHostBanner("");
     await StartPackage(manifest.id);
+    let launchManifest = manifest;
+    try {
+      const installedNow = await GetInstalledApps();
+      const fresh = (installedNow ?? []).find((m) => m.id === manifest.id);
+      if (fresh) {
+        launchManifest = fresh;
+      }
+    } catch {
+      // Keep original manifest snapshot if catalog refresh fails.
+    }
     setActiveApps((prev) => {
-      const existing = prev.find((app) => app.manifestId === manifest.id);
+      const existing = prev.find((app) => app.manifestId === launchManifest.id);
       if (existing) {
         setFocusedAppId(existing.id);
         setLaunchpadVisible(false);
         return prev;
       }
       const bridgeToken = newBridgeToken();
-      const origins = manifest.allowed_origins;
+      const origins = launchManifest.allowed_origins;
       const next: AppInstance = {
-        id: `${manifest.id}:${Date.now()}`,
-        manifestId: manifest.id,
-        name: manifest.name,
-        icon: manifest.icon,
-        url: withBridgeToken(withReload(manifest.url ?? ""), bridgeToken),
+        id: `${launchManifest.id}:${Date.now()}`,
+        manifestId: launchManifest.id,
+        name: launchManifest.name,
+        icon: launchManifest.icon,
+        url: withThemeSnapshot(
+          withBridgeToken(withReload(launchManifest.url ?? ""), bridgeToken),
+          currentTheme,
+          activeThemeVariant,
+        ),
         bridgeToken,
         allowed_origins: origins && origins.length > 0 ? [...origins] : undefined,
         iframeEpoch: 0,
@@ -450,7 +517,7 @@ export default function App(): React.ReactElement {
 
   useEffect(() => {
     if (settingsVisible && settingsTab === "permissions") {
-      void reloadPermissionEntries();
+      void reloadPermissionsSettings();
     }
   }, [settingsVisible, settingsTab]);
 
@@ -490,10 +557,11 @@ export default function App(): React.ReactElement {
         parsed.bridgeToken,
       );
       if (!trust.ok) {
+        const reason = "reason" in trust ? trust.reason : "source_mismatch";
         if (import.meta.env.DEV) {
-          console.warn("[talos bridge] rejected:", trust.reason, { app_id: parsed.appId });
+          console.warn("[talos bridge] rejected:", reason, { app_id: parsed.appId });
         }
-        respond(false, null, `bridge rejected: ${trust.reason}`, parsed.requestId);
+        respond(false, null, `bridge rejected: ${reason}`, parsed.requestId);
         return;
       }
 
@@ -565,6 +633,20 @@ export default function App(): React.ReactElement {
         if (method === "resolvePath") {
           const resolved = await ResolveScopedPath(manifestId, String(params.relative_path || ""));
           respond(true, { resolved_path: resolved }, "", parsed.requestId);
+          return;
+        }
+        if (method === "readScopedText") {
+          const out = await ReadScopedText(manifestId, String(params.relative_path || ""));
+          respond(true, out, "", parsed.requestId);
+          return;
+        }
+        if (method === "writeScopedText") {
+          await WriteScopedText(
+            manifestId,
+            String(params.relative_path || ""),
+            String(params.text || ""),
+          );
+          respond(true, { ok: true }, "", parsed.requestId);
           return;
         }
         if (method === "sendMessage") {
@@ -649,7 +731,16 @@ export default function App(): React.ReactElement {
         await reloadCatalog();
         await reloadThemes();
         void DevelopmentFeaturesEnabled().then((v) => setInstallUiEnabled(!!v));
-        void ListRepositoryPackages().then((rows) => setRepoBrowse(rows ?? []));
+        void ListRepositoryPackages()
+          .then((rows) => {
+            setRepoBrowse(rows ?? []);
+            setRepoBrowseError("");
+          })
+          .catch((e: unknown) => {
+            setRepoBrowse([]);
+            setRepoBrowseError(userFacingFetchError(e));
+          });
+        void DefaultUpdateChannelURL().then((u) => setUpdateChannelURL(u ?? ""));
       } catch (error) {
         if (mounted) setStartupError(String(error));
       }
@@ -658,8 +749,47 @@ export default function App(): React.ReactElement {
     const onDismissMenu = (): void => hideContextMenu();
 
     let offPackages: (() => void) | undefined;
+    let offDevURL: (() => void) | undefined;
     let pollTimer: number | undefined;
     const wailsDeadline = Date.now() + 120_000;
+
+    const refreshInstalledAndIframeFor = (pid: string): void => {
+      if (packagesEventDebounceRef.current !== undefined) {
+        window.clearTimeout(packagesEventDebounceRef.current);
+      }
+      packagesEventDebounceRef.current = window.setTimeout(() => {
+        packagesEventDebounceRef.current = undefined;
+        void (async () => {
+          const installed = await reloadCatalog();
+          if (!pid) {
+            return;
+          }
+          setActiveApps((prev) =>
+            prev.map((app) => {
+              if (app.manifestId !== pid) {
+                return app;
+              }
+              const manifest = installed.find((m) => m.id === pid);
+              const nextUrl = manifest
+                ? withThemeSnapshot(
+                  withBridgeToken(withReload(manifest.url ?? ""), app.bridgeToken),
+                  currentTheme,
+                  activeThemeVariant,
+                )
+                : withThemeSnapshot(withReload(app.url), currentTheme, activeThemeVariant);
+              const origins = manifest?.allowed_origins;
+              return {
+                ...app,
+                iframeEpoch: app.iframeEpoch + 1,
+                url: nextUrl,
+                icon: manifest?.icon ?? app.icon,
+                allowed_origins: origins && origins.length > 0 ? [...origins] : undefined,
+              };
+            }),
+          );
+        })();
+      }, 300);
+    };
 
     const attachWails = (): boolean => {
       if (!wailsShellReady()) return false;
@@ -668,38 +798,12 @@ export default function App(): React.ReactElement {
       window.addEventListener("click", onDismissMenu);
       window.addEventListener("scroll", onDismissMenu, true);
       offPackages = EventsOn("packages:event", (evt: Record<string, unknown>) => {
-        if (packagesEventDebounceRef.current !== undefined) {
-          window.clearTimeout(packagesEventDebounceRef.current);
-        }
-        packagesEventDebounceRef.current = window.setTimeout(() => {
-          packagesEventDebounceRef.current = undefined;
-          void (async () => {
-            const installed = await reloadCatalog();
-            const pid = String(evt?.package_id ?? "");
-            if (!pid) {
-              return;
-            }
-            setActiveApps((prev) =>
-              prev.map((app) => {
-                if (app.manifestId !== pid) {
-                  return app;
-                }
-                const manifest = installed.find((m) => m.id === pid);
-                const nextUrl = manifest
-                  ? withBridgeToken(withReload(manifest.url ?? ""), app.bridgeToken)
-                  : withReload(app.url);
-                const origins = manifest?.allowed_origins;
-                return {
-                  ...app,
-                  iframeEpoch: app.iframeEpoch + 1,
-                  url: nextUrl,
-                  icon: manifest?.icon ?? app.icon,
-                  allowed_origins: origins && origins.length > 0 ? [...origins] : undefined,
-                };
-              }),
-            );
-          })();
-        }, 300);
+        const pid = String(evt?.package_id ?? "");
+        refreshInstalledAndIframeFor(pid);
+      });
+      offDevURL = EventsOn("package:dev-url", (evt: Record<string, unknown>) => {
+        const pid = String(evt?.app_id ?? "");
+        refreshInstalledAndIframeFor(pid);
       });
       return true;
     };
@@ -734,17 +838,58 @@ export default function App(): React.ReactElement {
       window.removeEventListener("click", onDismissMenu);
       window.removeEventListener("scroll", onDismissMenu, true);
       if (typeof offPackages === "function") offPackages();
+      if (typeof offDevURL === "function") offDevURL();
     };
   }, [installedApps, launchableApps, storeApps, activeApps]);
 
   async function selectTheme(name: string): Promise<void> {
     applyTheme(name);
     setCurrentTheme(name);
+    const variant = await loadThemeVariant(name);
+    setActiveThemeVariant(variant);
     const prefs = await LoadUserPrefs();
     await SaveUserPrefs({
       ...prefs,
       theme: name,
     });
+  }
+
+  useEffect(() => {
+    void (async () => {
+      const variant = await loadThemeVariant(currentTheme);
+      setActiveThemeVariant(variant);
+    })();
+  }, [currentTheme]);
+
+  function postThemeUpdateToApp(app: AppInstance): void {
+    const iframe = iframeRefs.current[app.id];
+    if (!iframe || !iframe.contentWindow) return;
+    const target = postMessageTargetForAppInstance(app, iframe);
+    iframe.contentWindow.postMessage({
+      channel: "talos:theme:v1",
+      type: "talos:theme:update",
+      theme_name: currentTheme,
+      variant_id: activeThemeVariant.variant_id,
+      theme_href: `/themes/${encodeURIComponent(currentTheme)}.css`,
+      tokens_href: "talos/tokens.css",
+      components_css_href: activeThemeVariant.components_css_href || "talos/components.css",
+    }, target);
+  }
+
+  useEffect(() => {
+    for (const app of activeApps) {
+      postThemeUpdateToApp(app);
+    }
+  }, [activeApps, currentTheme, activeThemeVariant]);
+
+  function resolvePermissionPrompt(granted: boolean): void {
+    if (!permissionPrompt) return;
+    const appID = permissionPrompt.app_id;
+    const scope = permissionPrompt.scope;
+    const complete = granted ? GrantPermission(appID, scope) : DenyPermission(appID, scope);
+    void complete
+      .then(() => reloadPermissionsSettings())
+      .finally(() => setPermissionPrompt(null));
   }
 
   return (
@@ -824,6 +969,7 @@ export default function App(): React.ReactElement {
           <>
             <section className={`launchpad ${launchpadVisible ? "show" : "hide"}`}>
               <h1>Talos Launchpad</h1>
+              {hostBanner ? <div className="host-banner">{hostBanner}</div> : null}
               <h2>Installed</h2>
               <div className="list">
                 {launchableApps.map((app) => (
@@ -864,7 +1010,15 @@ export default function App(): React.ReactElement {
                     </span>
                     <span>
                       <strong>{app.name}</strong>
-                      <small>{app.description || "Installed Tiny App"}</small>
+                      <small>
+                        {app.description || "Installed Tiny App"}
+                        {app.trust_status ? (
+                          <span className={`trust-badge trust-${app.trust_status}`}>
+                            {" "}
+                            · {formatTrustStatus(app.trust_status)}
+                          </span>
+                        ) : null}
+                      </small>
                     </span>
                   </button>
                 ))}
@@ -964,10 +1118,43 @@ export default function App(): React.ReactElement {
               ) : null}
               <h2>Repositories</h2>
               <p className="perm-hint">
-                {repoBrowse.length === 0
-                  ? "No remote packages listed yet (stub registry)."
-                  : `${repoBrowse.length} package(s) from repositories.`}
+                Set <code>TALOS_CATALOG_URL</code> to an HTTPS JSON feed (see docs/PHASE3.md). Otherwise the catalog is empty.
               </p>
+              {repoBrowseError ? <pre className="update-check-out">{repoBrowseError}</pre> : null}
+              <div className="list">
+                {repoBrowse.map((p) => (
+                  <div key={p.id} className="app-card repo-row">
+                    <span className="icon">📦</span>
+                    <span>
+                      <strong>{p.name || p.id}</strong>
+                      <small>
+                        <code>{p.id}</code>
+                        {p.source ? ` · ${p.source}` : ""}
+                      </small>
+                    </span>
+                    {installUiEnabled && p.install_url ? (
+                      <button
+                        type="button"
+                        className="ui-button install-btn"
+                        disabled={installBusy}
+                        onClick={() => {
+                          setInstallBusy(true);
+                          setInstallMessage("");
+                          void InstallPackageFromURL(p.install_url!)
+                            .then((id) => {
+                              setInstallMessage(`Installed: ${id}`);
+                              return reloadCatalog();
+                            })
+                            .catch((e: unknown) => setInstallMessage(String(e)))
+                            .finally(() => setInstallBusy(false));
+                        }}
+                      >
+                        Install
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
               <h2>Store</h2>
               <div className="list">
                 {storeApps.map((app) => (
@@ -1002,6 +1189,7 @@ export default function App(): React.ReactElement {
                   }}
                   style={{ display: focusedAppId === app.id ? "block" : "none" }}
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  onLoad={() => postThemeUpdateToApp(app)}
                 />
               ))}
             </section>
@@ -1098,7 +1286,7 @@ export default function App(): React.ReactElement {
                       Revoke clears a scope so the next request can prompt again. If you Allow or Deny from the popup,
                       retry the action in the app if needed.
                     </p>
-                    <button type="button" className="ui-button perm-refresh" onClick={() => void reloadPermissionEntries()}>
+                    <button type="button" className="ui-button perm-refresh" onClick={() => void reloadPermissionsSettings()}>
                       Refresh list
                     </button>
                     <div className="perm-table-wrap">
@@ -1127,12 +1315,44 @@ export default function App(): React.ReactElement {
                                     type="button"
                                     className="ui-button"
                                     onClick={() => {
-                                      void RevokePermission(row.app_id, row.scope).then(() => reloadPermissionEntries());
+                                      void RevokePermission(row.app_id, row.scope).then(() => reloadPermissionsSettings());
                                     }}
                                   >
                                     Revoke
                                   </button>
                                 </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <h3>Permission audit log</h3>
+                    <p className="perm-hint">Persisted decisions from <code>Temp/logs/permission_audit.jsonl</code>.</p>
+                    <div className="perm-table-wrap">
+                      <table className="perm-table">
+                        <thead>
+                          <tr>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>App</th>
+                            <th>Scope</th>
+                            <th>Granted</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {permissionAudit.length === 0 ? (
+                            <tr>
+                              <td colSpan={5}>No audit entries yet.</td>
+                            </tr>
+                          ) : (
+                            permissionAudit.map((row, i) => (
+                              <tr key={`${row.ts}-${row.app_id}-${row.scope}-${i}`}>
+                                <td className="perm-ts">{row.ts}</td>
+                                <td>{row.action}</td>
+                                <td><code>{row.app_id}</code></td>
+                                <td><code>{row.scope}</code></td>
+                                <td>{row.granted ? "yes" : "no"}</td>
                               </tr>
                             ))
                           )}
@@ -1163,6 +1383,38 @@ export default function App(): React.ReactElement {
                       Launchpad is the root frontend package. It lists installed apps, launches
                       app iframes, and brokers SDK bridge messages to the host.
                     </p>
+                    <h4>Update channel (optional)</h4>
+                    <p className="perm-hint">
+                      Set <code>TALOS_UPDATE_CHANNEL</code> to a JSON URL (array of updates), or paste a URL below.
+                    </p>
+                    <div className="install-row install-row-split">
+                      <input
+                        className="ui-input"
+                        placeholder="https://example.com/talos-channel.json"
+                        value={updateChannelURL}
+                        onChange={(e) => setUpdateChannelURL(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="ui-button"
+                        onClick={() => {
+                          void CheckForUpdates(updateChannelURL).then((rows) => {
+                            if (!rows?.length) {
+                              setUpdateCheckResult("No entries or empty URL.");
+                              return;
+                            }
+                            setUpdateCheckResult(
+                              rows.map((r) => `${r.app_id} ${r.version} → ${r.artifact_url}`).join("\n"),
+                            );
+                          }).catch((e: unknown) => setUpdateCheckResult(userFacingFetchError(e)));
+                        }}
+                      >
+                        Check for updates
+                      </button>
+                    </div>
+                    {updateCheckResult ? (
+                      <pre className="update-check-out">{updateCheckResult}</pre>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -1174,7 +1426,7 @@ export default function App(): React.ReactElement {
         <div
           className="permission-modal-backdrop"
           role="presentation"
-          onClick={() => setPermissionPrompt(null)}
+          onClick={() => resolvePermissionPrompt(false)}
         >
           <div
             className="permission-modal"
@@ -1190,33 +1442,22 @@ export default function App(): React.ReactElement {
             {permissionPrompt.reason ? (
               <p className="perm-reason-block">{permissionPrompt.reason}</p>
             ) : null}
-            <p className="perm-hint">
-              The first SDK call may have completed before you answer here. After Allow or Deny, retry the action in the app.
-            </p>
             <div className="perm-actions">
               <button
                 type="button"
                 className="ui-button"
-                onClick={() => {
-                  void GrantPermission(permissionPrompt.app_id, permissionPrompt.scope)
-                    .then(() => reloadPermissionEntries())
-                    .finally(() => setPermissionPrompt(null));
-                }}
+                onClick={() => resolvePermissionPrompt(true)}
               >
                 Allow
               </button>
               <button
                 type="button"
                 className="ui-button"
-                onClick={() => {
-                  void DenyPermission(permissionPrompt.app_id, permissionPrompt.scope)
-                    .then(() => reloadPermissionEntries())
-                    .finally(() => setPermissionPrompt(null));
-                }}
+                onClick={() => resolvePermissionPrompt(false)}
               >
                 Deny
               </button>
-              <button type="button" className="ui-button" onClick={() => setPermissionPrompt(null)}>
+              <button type="button" className="ui-button" onClick={() => resolvePermissionPrompt(false)}>
                 Dismiss
               </button>
             </div>

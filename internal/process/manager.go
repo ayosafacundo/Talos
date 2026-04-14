@@ -58,15 +58,19 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 	m.mu.RUnlock()
 
 	binPath := filepath.Join(pkg.DirPath, filepath.Clean(pkg.Manifest.Binary))
-	st, err := os.Stat(binPath)
+	absBinPath, err := filepath.Abs(binPath)
 	if err != nil {
-		return fmt.Errorf("process: stat %q failed: %w", binPath, err)
+		return fmt.Errorf("process: resolve binary path %q failed: %w", binPath, err)
+	}
+	st, err := os.Stat(absBinPath)
+	if err != nil {
+		return fmt.Errorf("process: stat %q failed: %w", absBinPath, err)
 	}
 	if st.IsDir() {
 		return fmt.Errorf("process: binary path %q is a directory", binPath)
 	}
 
-	cmd := exec.CommandContext(ctx, binPath)
+	cmd := exec.CommandContext(ctx, absBinPath)
 	cmd.Dir = pkg.DirPath
 	stdoutWriter := io.Writer(os.Stdout)
 	stderrWriter := io.Writer(os.Stderr)
@@ -123,9 +127,7 @@ func (m *Manager) Stop(appID string) error {
 		return nil
 	}
 
-	if err := cmd.Process.Kill(); err != nil {
-		return fmt.Errorf("process: kill %q failed: %w", appID, err)
-	}
+	killCmdTree(cmd)
 	return nil
 }
 

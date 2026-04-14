@@ -379,6 +379,50 @@ html, body, #root {
   background: #332;
 }
 
+.host-banner {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #864;
+  background: #432;
+  font-size: 13px;
+  color: var(--text-primary, #eee);
+}
+
+.trust-badge {
+  font-size: 11px;
+  opacity: 0.95;
+}
+
+.trust-tampered,
+.trust-signed_invalid {
+  color: #f88;
+}
+
+.trust-signed_ok {
+  color: #8c8;
+}
+
+.update-check-out {
+  margin-top: 10px;
+  padding: 10px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 12px;
+  background: var(--bg-secondary, #1a1a1a);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+
+.repo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .permission-modal-backdrop {
   position: fixed;
   inset: 0;

@@ -5,16 +5,53 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"Talos/internal/packages"
 )
 
+// DevStartOptions configures optional dev-server URL discovery (log parse + HTTP probe).
+type DevStartOptions struct {
+	ManifestDevURL string
+	OnResolvedURL  func(baseURL string)
+}
+
+// ringBuffer keeps recent dev-server output for URL parsing.
+type ringBuffer struct {
+	mu  sync.Mutex
+	buf []byte
+	max int
+}
+
+func newRingBuffer(max int) *ringBuffer {
+	return &ringBuffer{max: max}
+}
+
+func (r *ringBuffer) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.buf = append(r.buf, p...)
+	if len(r.buf) > r.max {
+		r.buf = r.buf[len(r.buf)-r.max:]
+	}
+	return len(p), nil
+}
+
+func (r *ringBuffer) String() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return string(r.buf)
+}
+
 // StartDev spawns development.command for a package (e.g. npm run dev). Logs to packageLogDir/<id>-dev.log.
-func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv []string) error {
+// If opts is non-nil and OnResolvedURL is set, stdout/stderr are scanned for a loopback URL and a nearby-port HTTP probe runs as fallback.
+func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv []string, opts *DevStartOptions) error {
 	if pkg == nil || pkg.Manifest == nil || len(argv) == 0 {
 		return errors.New("process: dev start requires package and argv")
 	}
@@ -26,6 +63,13 @@ func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv 
 	}
 	m.devMu.Unlock()
 
+	manifestDevURL := ""
+	if pkg.Manifest.Development != nil {
+		manifestDevURL = strings.TrimSpace(pkg.Manifest.Development.URL)
+	}
+	if opts != nil && strings.TrimSpace(opts.ManifestDevURL) != "" {
+		manifestDevURL = strings.TrimSpace(opts.ManifestDevURL)
+	}
 	prog := argv[0]
 	args := argv[1:]
 	execPath := prog
@@ -59,12 +103,23 @@ func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv 
 			}
 		}
 	}
+
+	var sniff *ringBuffer
+	if opts != nil && opts.OnResolvedURL != nil {
+		sniff = newRingBuffer(64 * 1024)
+		stdoutWriter = io.MultiWriter(stdoutWriter, sniff)
+		stderrWriter = io.MultiWriter(stderrWriter, sniff)
+	}
+
 	cmd.Stdout = stdoutWriter
 	cmd.Stderr = stderrWriter
 	if len(cmd.Env) == 0 {
 		cmd.Env = os.Environ()
 	}
 	cmd.Env = append(cmd.Env, "NODE_ENV=development")
+	if p := devServerPortFromURL(manifestDevURL); p != "" {
+		cmd.Env = append(cmd.Env, "TALOS_DEV_SERVER_PORT="+p)
+	}
 	configureCmd(cmd)
 
 	if err := cmd.Start(); err != nil {
@@ -76,6 +131,11 @@ func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv 
 	m.devMu.Lock()
 	m.devRunning[appID] = cmd
 	m.devMu.Unlock()
+
+	if sniff != nil && opts != nil && opts.OnResolvedURL != nil {
+		go m.watchResolvedDevURL(ctx, manifestDevURL, sniff, opts.OnResolvedURL)
+	}
+
 	go func() {
 		_ = cmd.Wait()
 		if logFile != nil {
@@ -86,6 +146,56 @@ func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv 
 		m.devMu.Unlock()
 	}()
 	return nil
+}
+
+func devServerPortFromURL(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ""
+	}
+	return u.Port()
+}
+
+func (m *Manager) watchResolvedDevURL(ctx context.Context, manifestDevURL string, sniff *ringBuffer, onResolved func(string)) {
+	if onResolved == nil {
+		return
+	}
+	var once sync.Once
+	fire := func(s string) {
+		once.Do(func() { onResolved(s) })
+	}
+
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.After(45 * time.Second)
+
+	// Immediate attempt before first tick
+	if s := ParseDevServerBaseURL(sniff.String()); s != "" {
+		fire(s)
+		return
+	}
+	if s := ProbeHTTPAroundManifest(ctx, manifestDevURL, 8); s != "" {
+		fire(s)
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-deadline:
+			return
+		case <-ticker.C:
+			if s := ParseDevServerBaseURL(sniff.String()); s != "" {
+				fire(s)
+				return
+			}
+			if s := ProbeHTTPAroundManifest(ctx, manifestDevURL, 8); s != "" {
+				fire(s)
+				return
+			}
+		}
+	}
 }
 
 // StopDev terminates a dev server process for appID, if running.
@@ -99,7 +209,7 @@ func (m *Manager) StopDev(appID string) error {
 	delete(m.devRunning, appID)
 	m.devMu.Unlock()
 	if cmd.Process != nil {
-		_ = cmd.Process.Kill()
+		killCmdTree(cmd)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-import type { ContextMenuOption, PermissionResult, TalosTransport } from "./types"
+import type { ContextMenuOption, PermissionResult, ScopedTextReadResult, TalosTransport } from "./types"
 
 // TalosClient is an SDK wrapper intended for tiny app usage.
 // A transport adapter can target grpc-web, native node gRPC, or bridge IPC.
@@ -29,6 +29,20 @@ export class TalosClient {
 
   async resolvePath(relativePath: string): Promise<string> {
     return this.transport.resolvePath(this.appId, relativePath)
+  }
+
+  async readScopedText(relativePath: string): Promise<ScopedTextReadResult> {
+    if (!this.transport.readScopedText) {
+      throw new Error("transport does not support scoped text reads")
+    }
+    return this.transport.readScopedText(this.appId, relativePath)
+  }
+
+  async writeScopedText(relativePath: string, text: string): Promise<void> {
+    if (!this.transport.writeScopedText) {
+      throw new Error("transport does not support scoped text writes")
+    }
+    await this.transport.writeScopedText(this.appId, relativePath, text)
   }
 
   async setContextMenuOptions(options: ContextMenuOption[]): Promise<void> {

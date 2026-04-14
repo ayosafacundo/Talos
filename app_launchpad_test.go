@@ -106,3 +106,26 @@ func TestPackageToManifestViewResolvesGIFIconAsDataURL(t *testing.T) {
 		t.Fatalf("expected gif data URL, got %q", out.Icon)
 	}
 }
+
+func TestResolvePackageURL_CommandOnlyDevStartsBlank(t *testing.T) {
+	t.Setenv("TALOS_DEV_MODE", "1")
+
+	pkg := &packages.PackageInfo{
+		DirPath: "/tmp/demo",
+		Manifest: &manifest.Definition{
+			ID:       "app.dev.command.only",
+			Name:     "Dev App",
+			WebEntry: "dist/index.html",
+			Development: &manifest.Development{
+				Command: []string{"npm", "run", "dev"},
+			},
+		},
+	}
+	u, _, dev := resolvePackageURL(pkg)
+	if !dev {
+		t.Fatal("expected dev mode true for command-only development config")
+	}
+	if u != "about:blank" {
+		t.Fatalf("expected about:blank until runtime resolves URL, got %q", u)
+	}
+}

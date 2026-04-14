@@ -63,9 +63,11 @@ development:
     - "http://localhost:5174"
 ```
 
-- `development.url`: required when `development.command` is set; must be `http` or `https` on loopback (`localhost`, `127.0.0.1`, `::1`, or `127.*`).
+- `development.url`: required when `development.command` is set; must be `http` or `https` on loopback (`localhost`, `127.0.0.1`, `::1`, or `127.*`). The host uses this URL as the initial iframe target and as a hint for discovery.
 - `development.command`: optional argv list (first element is the binary name; no shell). If omitted, only `development.url` is used (you start the dev server yourself).
 - `development.allowed_origins`: origins allowed for the iframe bridge; must include the origin of `development.url`.
+
+**Host behavior (dev mode):** Talos injects **`TALOS_DEV_SERVER_PORT`** (from the port in `development.url`) into the dev command environment. Prefer wiring Vite (or similar) to that port and enabling **`strictPort: true`** so the real listen port cannot drift silently. If it does drift (for example “port in use, trying another one”), the host scans dev-server output and probes nearby ports on **both** `127.0.0.1` and `localhost`, then **rewrites** the discovered URL to use your manifest’s loopback hostname with the **actual** listen port. Bridge allowlists also gain the alternate loopback hostname for the same port when needed. The Wails event **`package:dev-url`** is emitted with `app_id` and `url` so the UI can refresh installed-app metadata.
 
 ## Validation Constraints
 

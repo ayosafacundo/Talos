@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -18,11 +19,12 @@ var (
 	errNoContext        = errors.New("install: app context not ready")
 )
 
-// RemotePackageDescriptor is a row for the future “browse repositories” UI.
+// RemotePackageDescriptor is a row for the “browse repositories” UI.
 type RemotePackageDescriptor struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Source string `json:"source,omitempty"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Source     string `json:"source,omitempty"`
+	InstallURL string `json:"install_url,omitempty"`
 }
 
 // DevelopmentFeaturesEnabled is true when manifest development.* may be honored (dev shell only).
@@ -74,19 +76,34 @@ func (a *App) InstallPackageFromGitHub(owner, repo, ref string) (string, error) 
 	return id, err
 }
 
-// ListRepositoryPackages returns catalog entries (stub until registry exists).
+// ListRepositoryPackages returns catalog entries. Set TALOS_CATALOG_URL to an HTTPS JSON feed; otherwise returns the stub (empty).
 func (a *App) ListRepositoryPackages() []RemotePackageDescriptor {
 	ctx := context.Background()
 	if a.ctx != nil {
 		ctx = a.ctx
 	}
-	rows, err := repository.NewStub().List(ctx)
+	catURL := strings.TrimSpace(os.Getenv("TALOS_CATALOG_URL"))
+	var rows []repository.Descriptor
+	var err error
+	if catURL != "" {
+		rows, err = repository.NewHTTP(catURL).List(ctx)
+	} else {
+		rows, err = repository.NewStub().List(ctx)
+	}
 	if err != nil {
 		return nil
 	}
 	out := make([]RemotePackageDescriptor, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, RemotePackageDescriptor{ID: r.ID, Name: r.Name, Source: "stub"})
+		src := r.Source
+		if src == "" && catURL == "" {
+			src = "stub"
+		} else if src == "" {
+			src = "catalog"
+		}
+		out = append(out, RemotePackageDescriptor{
+			ID: r.ID, Name: r.Name, Source: src, InstallURL: r.InstallURL,
+		})
 	}
 	return out
 }

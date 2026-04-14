@@ -54,11 +54,41 @@ development:
     - "http://127.0.0.1:5174"
 ```
 
+When Talos runs `development.command`, it sets **`TALOS_DEV_SERVER_PORT`** from the port in `development.url` (for example `5174`). Point your bundler at it so the listen port matches the manifest, for example in `vite.config.ts`:
+
+```ts
+export default defineConfig({
+  server: {
+    port: Number(process.env.TALOS_DEV_SERVER_PORT) || 5174,
+    strictPort: true,
+  },
+});
+```
+
+Using **`strictPort: true`** makes Vite exit if the port is taken instead of silently picking another port, which would disagree with `development.url`. If Vite still prints a different port (for example “Port 5173 is in use, trying another one…”), the host **parses dev-server logs** and **probes nearby HTTP ports** on both `127.0.0.1` and `localhost`, then **rewrites the discovered URL** to match your manifest hostname while keeping the real listen port. Bridge `allowed_origins` are expanded to include both loopback hostnames for the same port when needed.
+
+#### Talos shell URL vs your app’s Vite URL
+
+When you run the host with `wails dev` or `make dev`, the console often says something like: navigate to **`http://localhost:34115`** (port varies) to use **Wails bindings** (`window.go.main.App`, …). That URL is the **Talos desktop shell** (Launchpad), not your Tiny App’s dev server.
+
+Your package’s Vite (for example `http://localhost:5174/`) is meant to load **inside Talos** in the app iframe. Use the **Talos window** at the Wails URL for full host + hub + iframe behavior. Opening only the raw Vite URL in a browser will not expose the host Go API.
+
+Benign noise from the embedded webview (for example `NeedDebuggerBreak` / VM trap lines in the terminal) can usually be ignored while debugging.
+
 See `docs/build-your-app/02-package-layout-and-manifest.md` for `development.command` and validation rules.
+
+### Optional: Talos asset-driven UI components
+
+To reduce per-app styling effort, use Talos shared component assets:
+
+- Theme contract: `docs/ASSET_DRIVEN_THEMES.md`
+- Host/tokens/components guidance: `docs/build-your-app/07-talos-ui-and-themes.md`
+- Web components package: `sdk/web-components/`
+- Scaffold example: `Packages/Example TS App/`
 
 ## 3) Create Tiny App Source
 
-Create app source under `examples/tinyapps/my-tiny-app/main.go` and use:
+Create app source under your package (for example `Packages/My Tiny App/src/main.go`) and use:
 
 - `TALOS_APP_ID`
 - `TALOS_HUB_SOCKET`
@@ -77,14 +107,16 @@ Core boot sequence:
 Example command:
 
 ```bash
-go build -o "Packages/My Tiny App/bin/my-tiny-app" ./examples/tinyapps/my-tiny-app
+go build -o "Packages/My Tiny App/bin/my-tiny-app" ./Packages/My\ Tiny\ App/src
 chmod +x "Packages/My Tiny App/bin/my-tiny-app"
 ```
 
-For the included demo app:
+For the included example apps:
 
 ```bash
-make tiny-demo-build
+make example-go-app-build
+make example-rust-app-build
+make example-ts-app-build
 ```
 
 ## 5) Run Talos and Start App
@@ -139,21 +171,27 @@ Use this checklist:
   - Use SDK helpers (they call host `ResolvePath`).
   - Verify relative path does not attempt directory escape.
 
-## 9) Reference Demo
+## 9) Reference Example Apps
 
-Included reference tiny app:
+Included reference Go app:
 
-- Source: `examples/tinyapps/go-demo/main.go`
-- Package: `Packages/Tiny Go Demo`
-- Build: `make tiny-demo-build`
+- Source: `Packages/Example Go App/src/main.go`
+- Package: `Packages/Example Go App`
+- Build: `make example-go-app-build`
 
-## 10) TypeScript Demo (Iframe Bridge)
+Included reference Rust app:
 
-Included TypeScript demo app:
+- Source: `Packages/Example Rust App/src/main.rs`
+- Package: `Packages/Example Rust App`
+- Build: `make example-rust-app-build`
 
-- Source: `examples/tinyapps/ts-demo/src/main.ts`
-- Package: `Packages/Tiny TS Demo`
-- Build: `make tiny-ts-demo-build`
+## 10) TypeScript Example (Iframe Bridge)
+
+Included TypeScript example app:
+
+- Source: `Packages/Example TS App/src/App.tsx`
+- Package: `Packages/Example TS App`
+- Build: `make example-ts-app-build`
 
 How it works:
 

@@ -1,0 +1,13 @@
+:root {
+  --talos-component-font: var(--talos-font-sans, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif);
+  --talos-component-border: var(--talos-color-border, #2a2a2a);
+  --talos-component-bg: var(--talos-color-bg-surface, #111315);
+  --talos-component-bg-soft: var(--talos-color-bg-secondary, #191c20);
+  --talos-component-fg: var(--talos-color-text-primary, #f5f7fa);
+  --talos-component-muted: var(--talos-color-text-muted, #a2adbb);
+  --talos-component-accent: var(--talos-color-accent, #4f8cff);
+  --talos-component-success: #2f9e63;
+  --talos-component-danger: #d64545;
+  --talos-component-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --talos-component-row-hover: color-mix(in srgb, var(--talos-component-bg-soft) 92%, white 8%);
+}

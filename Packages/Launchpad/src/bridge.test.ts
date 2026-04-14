@@ -6,6 +6,8 @@ import {
   ALLOWED_SDK_METHODS,
   buildBridgeResponse,
   isAllowedMethod,
+  isMessageOriginAllowed,
+  normalizeWebOrigin,
   parseBridgeRequest,
   resolveTrustedSender,
 } from "./bridge";
@@ -82,6 +84,28 @@ describe("isAllowedMethod", () => {
     expect(isAllowedMethod("saveState")).toBe(true);
     expect(isAllowedMethod("not_a_method")).toBe(false);
     expect(ALLOWED_SDK_METHODS.has("broadcast")).toBe(true);
+  });
+});
+
+describe("normalizeWebOrigin", () => {
+  it("strips paths and trailing ambiguity for loopback", () => {
+    expect(normalizeWebOrigin("http://127.0.0.1:5174/")).toBe("http://127.0.0.1:5174");
+    expect(normalizeWebOrigin("http://127.0.0.1:5174")).toBe("http://127.0.0.1:5174");
+    expect(normalizeWebOrigin("http://localhost:3000/foo")).toBe("http://localhost:3000");
+  });
+});
+
+describe("isMessageOriginAllowed", () => {
+  it("treats empty allowlist as allow-all", () => {
+    expect(isMessageOriginAllowed("http://127.0.0.1:1", undefined)).toBe(true);
+    expect(isMessageOriginAllowed("http://127.0.0.1:1", [])).toBe(true);
+  });
+
+  it("matches 127.0.0.1 vs localhost when both listed", () => {
+    const allowed = ["http://127.0.0.1:5174", "http://localhost:5174"];
+    expect(isMessageOriginAllowed("http://127.0.0.1:5174", allowed)).toBe(true);
+    expect(isMessageOriginAllowed("http://localhost:5174", allowed)).toBe(true);
+    expect(isMessageOriginAllowed("http://evil.com", allowed)).toBe(false);
   });
 });
 
