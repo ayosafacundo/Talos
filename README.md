@@ -29,18 +29,13 @@ In practical terms, Talos gives people one desktop hub where approved mini apps 
 
 ---
 
-## Screenshots (Placeholders)
+## With fully customizable Launchpad and fully customizable themes for the apps inside!
 
-Use these placeholders until real screenshots are added:
+<img src="docs/images/Launchpad.png" alt="Launchpad home showing installed apps, trust badge, and quick actions." width="50%">
 
-![Talos Launchpad Placeholder](docs/images/placeholder-launchpad.png)
-_Placeholder: Launchpad home showing installed apps, trust badge, and quick actions._
+<img src="docs/images/Permission Request.png" alt="Permission prompt modal (allow/deny) for a Tiny App requesting internet access." width="50%">
 
-![Talos Permissions Placeholder](docs/images/placeholder-permissions.png)
-_Placeholder: Permission prompt modal (allow/deny) for a Tiny App requesting internet access._
-
-![Talos App Runtime Placeholder](docs/images/placeholder-runtime.png)
-_Placeholder: Active app tab view with one Tiny App running inside an iframe._
+<img src="docs/images/Example App.png" alt="Active app tab view with one Tiny App running inside an iframe." width="50%">
 
 ---
 
