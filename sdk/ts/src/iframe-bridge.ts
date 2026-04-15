@@ -249,19 +249,37 @@ export class IframeBridgeTransport implements TalosTransport {
     await this.call("writeScopedText", { relative_path: relativePath, text })
   }
 
+  async packageSdkLog(appId: string, level: string, message: string): Promise<void> {
+    void appId
+    await this.call("packageSdkLog", {
+      level: String(level || "INFO").trim(),
+      message: String(message || ""),
+    })
+  }
+
   /** Proxies GET/POST to the app's loopback sidecar via the host (path must start with /api/). */
   async packageLocalHttp(
     appId: string,
     method: string,
     path: string,
     body: string,
-  ): Promise<{ status: number; content_type: string; body: string }> {
+  ): Promise<{ status: number; content_type: string; body: string; body_base64?: string }> {
     void appId
     const result = (await this.call("packageLocalHttp", {
       method: String(method || "GET").toUpperCase(),
       path: String(path || ""),
       body: String(body || ""),
-    })) as { status?: number; content_type?: string; body?: string }
+    })) as { status?: number; content_type?: string; body?: string; body_base64?: string }
+    const b64 = String(result.body_base64 || "").trim()
+    if (b64) {
+      const raw = atob(b64)
+      return {
+        status: Number(result.status ?? 0),
+        content_type: String(result.content_type || ""),
+        body: raw,
+        body_base64: b64,
+      }
+    }
     return {
       status: Number(result.status ?? 0),
       content_type: String(result.content_type || ""),

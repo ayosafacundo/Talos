@@ -18,7 +18,7 @@ Talos package manifests are YAML files at `Packages/<PackageName>/manifest.yaml`
 - `permissions` (array[string]): requested capabilities (host policies still gate grant/deny).
 - `multi_instance` (bool): allow multiple UI instances.
 
-## `development` block (optional; requires Developer mode or `TALOS_DEV_MODE`)
+## `development` block (optional; per-folder Development mode in Settings, or `TALOS_DEV_MODE` in source builds)
 
 ```yaml
 development:
@@ -37,7 +37,7 @@ development:
 
 - `development.url` must be `http`/`https` on loopback (`localhost`, `127.0.0.1`, `::1`, or `127.*`).
 - `development.url` is optional when `development.command` is present; Talos can discover the runtime URL from logs/probing.
-- The host honors `development` when **Developer mode** is enabled in Launchpad Settings, or when **`TALOS_DEV_MODE=1`** is set (automation). Otherwise only packaged `web_entry` URLs (`/talos-pkg/...`) are used.
+- The host honors `development` when **Development mode** is enabled in Launchpad Settings **for that package’s folder** under `Packages/`, or when running a **non-production** build with **`TALOS_DEV_MODE=1`** (e.g. `make dev`). Otherwise only packaged `web_entry` URLs (`/talos-pkg/...`) are used. **Release** binaries (`wails build -tags=production`) do not read `TALOS_DEV_MODE`.
 - Host exports `TALOS_DEV_SERVER_PORT` to `development.command`.
 
 ## Host environment for package `binary` processes
@@ -45,6 +45,7 @@ development:
 When a package declares `binary`, the host starts it with environment including:
 
 - `TALOS_APP_ID`, `TALOS_APP_DATA_DIR`, `TALOS_HUB_SOCKET`
+- `TALOS_PACKAGE_DEVELOPMENT` — `1` when Launchpad **package development** is enabled for this app’s folder (Settings toggle, or source `TALOS_DEV_MODE=1` on non-production builds); `0` otherwise. Sidecars can surface this as “development” vs “production” packaging.
 - `TALOS_SQL_DSN` — SQLite connection string for this app’s isolated database file under the Talos data directory (per-app file; host-provisioned).
 
 ## Path and validation rules

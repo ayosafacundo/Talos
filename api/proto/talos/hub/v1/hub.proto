@@ -71,6 +71,17 @@ message ResolvePathResponse {
   string error = 3;
 }
 
+message AppendPackageLogRequest {
+  string app_id = 1;
+  string level = 2;
+  string message = 3;
+}
+
+message AppendPackageLogResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
 service HubService {
   rpc Route(RouteRequest) returns (RouteResponse);
   rpc Broadcast(BroadcastRequest) returns (BroadcastResponse);
@@ -78,4 +89,5 @@ service HubService {
   rpc LoadState(LoadStateRequest) returns (LoadStateResponse);
   rpc RequestPermission(PermissionRequest) returns (PermissionResponse);
   rpc ResolvePath(ResolvePathRequest) returns (ResolvePathResponse);
+  rpc AppendPackageLog(AppendPackageLogRequest) returns (AppendPackageLogResponse);
 }

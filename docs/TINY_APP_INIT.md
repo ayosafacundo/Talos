@@ -44,7 +44,7 @@ multi_instance: false
 
 ### Optional: dev-server iframe (developer mode only)
 
-When iterating on the web UI, you can load a local dev server instead of the built `dist/` tree. This applies only when `TALOS_DEV_MODE=1` (for example `make dev`); production binaries ignore the `development` block.
+When iterating on the web UI, you can load a local dev server instead of the built `dist/` tree. Turn on **Development mode** for your package folder in Launchpad Settings, or run a source build with `TALOS_DEV_MODE=1` (for example `make dev`). Installed release binaries ignore `TALOS_DEV_MODE` and use per-folder Settings only.
 
 ```yaml
 web_entry: dist/index.html
@@ -111,13 +111,7 @@ go build -o "Packages/My Tiny App/bin/my-tiny-app" ./Packages/My\ Tiny\ App/src
 chmod +x "Packages/My Tiny App/bin/my-tiny-app"
 ```
 
-For the included example apps:
-
-```bash
-make example-go-app-build
-make example-rust-app-build
-make example-ts-app-build
-```
+For the included example apps, build from repo root with your own commands (see `docs/DEVELOPMENT.md` — e.g. `go build` / `cargo` / `npm` under each package).
 
 ## 5) Run Talos and Start App
 
@@ -177,13 +171,13 @@ Included reference Go app:
 
 - Source: `Packages/Example Go App/src/main.go`
 - Package: `Packages/Example Go App`
-- Build: `make example-go-app-build`
+- Build: `go build` from `Packages/Example Go App/src` into `bin/` (see `docs/DEVELOPMENT.md`)
 
 Included reference Rust app:
 
 - Source: `Packages/Example Rust App/src/main.rs`
 - Package: `Packages/Example Rust App`
-- Build: `make example-rust-app-build`
+- Build: `cargo build --release` (see `docs/DEVELOPMENT.md`)
 
 ## 10) TypeScript Example (Iframe Bridge)
 
@@ -191,7 +185,7 @@ Included TypeScript example app:
 
 - Source: `Packages/Example TS App/src/App.tsx`
 - Package: `Packages/Example TS App`
-- Build: `make example-ts-app-build`
+- Build: `npm --prefix "Packages/Example TS App" run build`
 
 How it works:
 

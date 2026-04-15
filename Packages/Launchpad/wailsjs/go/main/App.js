@@ -86,6 +86,10 @@ export function InstallPackageFromZipPath(arg1) {
   return window['go']['main']['App']['InstallPackageFromZipPath'](arg1);
 }
 
+export function ListPackageDirectoriesDevSettings() {
+  return window['go']['main']['App']['ListPackageDirectoriesDevSettings']();
+}
+
 export function ListPackages() {
   return window['go']['main']['App']['ListPackages']();
 }
@@ -124,6 +128,10 @@ export function LoadUserPrefs() {
 
 export function PackageLocalHTTP(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['PackageLocalHTTP'](arg1, arg2, arg3, arg4);
+}
+
+export function PackageSdkLog(arg1, arg2, arg3) {
+  return window['go']['main']['App']['PackageSdkLog'](arg1, arg2, arg3);
 }
 
 export function ParanoidPackageTrust() {
@@ -184,6 +192,10 @@ export function SaveUserPrefs(arg1) {
 
 export function SetDeveloperMode(arg1) {
   return window['go']['main']['App']['SetDeveloperMode'](arg1);
+}
+
+export function SetPackageDirectoryDevMode(arg1, arg2) {
+  return window['go']['main']['App']['SetPackageDirectoryDevMode'](arg1, arg2);
 }
 
 export function StartPackage(arg1) {

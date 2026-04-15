@@ -24,7 +24,7 @@ If you run `go mod tidy` yourself, run `npm --prefix Packages/Launchpad install`
 
 **CI parity:** `make verify` runs Go tests, `go build ./...`, Launchpad Vitest, **`npm --prefix sdk/ts test`**, and the `internal/buildmode` test (see `make production-gate`). Hub socket integration tests are `bash scripts/run_integration_hub.sh` (also run in CI after verify).
 
-**Developer mode vs release binary:** `make app-build` ships a single production-tagged binary. Manifest `development` commands (e.g. `npm run dev`) are honored when **Developer mode** is on in Launchpad Settings, or when **`TALOS_DEV_MODE=1`** is set—same effective behavior as `make dev` for iframe URL selection.
+**Development mode vs release binary:** `make app-build` ships a `-tags=production` binary. Manifest `development` behavior is **off by default** per `Packages/<dir>` folder. Enable it only for specific folders in **Launchpad → Settings → Development mode**. Release binaries **ignore** `TALOS_DEV_MODE`; from a source tree, `make dev` sets `TALOS_DEV_MODE=1` so non-production builds honor that env for SDK/backend diagnostics (all packages).
 
 From frontend:
 
@@ -89,37 +89,52 @@ make verify
 
 - Persisted permission grants: `Temp/permissions.json`
 
-## Example Tiny Apps
+## Bundled example apps (optional)
 
-Build bundled Go example app:
+Packages under `Packages/` are built by their authors; the root `Makefile` only builds Talos + Launchpad. To compile the **in-repo** examples manually (from repo root):
 
-```bash
-make example-go-app-build
-```
+**Important (npm and scoped data)**
 
-Build bundled Rust example app:
+- Run the commands below from the **repository root**, or use the **in-package** variants that only use `--prefix ui` / `--prefix .` so npm does not create a spurious `Packages/Example … App/` tree inside an example folder.
+- Talos stores app files under `Packages/<Example>/data/` via the SDK. Do not prefix paths with `data/` in API calls (that would nest `data/data/…`).
 
-```bash
-make example-rust-app-build
-```
-
-Build bundled TypeScript iframe example app:
+**Example Go App**
 
 ```bash
-make example-ts-app-build
+npm --prefix "Packages/Example Go App/ui" install
+npm --prefix "Packages/Example Go App/ui" run build
+mkdir -p "Packages/Example Go App/bin"
+rm -f "Packages/Example Go App/bin/example-go-app"
+( cd "Packages/Example Go App/src" && go build -trimpath -o ../bin/example-go-app . )
 ```
 
-Clean generated binaries/assets:
+*(From `Packages/Example Go App/`: `npm --prefix ui install && npm --prefix ui run build`.)*
+
+**Example Rust App**
 
 ```bash
-make example-go-app-clean
-make example-rust-app-clean
-make example-ts-app-clean
+npm --prefix "Packages/Example Rust App/ui" install
+npm --prefix "Packages/Example Rust App/ui" run build
+cargo build --release --manifest-path "Packages/Example Rust App/Cargo.toml"
+mkdir -p "Packages/Example Rust App/bin"
+# Copy from target/release/ to bin/ (adjust for .exe on Windows)
+cp -f "Packages/Example Rust App/target/release/example-rust-app" "Packages/Example Rust App/bin/example-rust-app"
 ```
 
-## Build Full App
+*(From `Packages/Example Rust App/`: `npm --prefix ui install && npm --prefix ui run build`.)*
 
-Build everything (proto, demos, verify, Wails package):
+**Example TS App**
+
+```bash
+npm --prefix "Packages/Example TS App" install
+npm --prefix "Packages/Example TS App" run build
+```
+
+*(From `Packages/Example TS App/`: `npm install && npm run build`.)*
+
+## Build full Talos app
+
+Proto, frontend, verify, and production Wails binary (no other `Packages/*` builds):
 
 ```bash
 make app-build

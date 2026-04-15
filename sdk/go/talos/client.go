@@ -137,6 +137,22 @@ func (c *Client) ResolvePath(ctx context.Context, appID, relativePath string) (s
 	return resp.GetResolvedPath(), nil
 }
 
+// Log appends a line to the host SDK log file for appID when Development mode is enabled for that package (no-op on the host otherwise). level is e.g. INFO, WARN, ERROR, DEBUG.
+func (c *Client) Log(ctx context.Context, appID, level, message string) error {
+	resp, err := c.hub.AppendPackageLog(ctx, &hubpb.AppendPackageLogRequest{
+		AppId:   appID,
+		Level:   level,
+		Message: message,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.GetOk() {
+		return fmt.Errorf("talos sdk: log failed: %s", resp.GetError())
+	}
+	return nil
+}
+
 func (c *Client) WriteScopedFile(ctx context.Context, appID, relativePath string, data []byte) error {
 	path, err := c.ResolvePath(ctx, appID, relativePath)
 	if err != nil {

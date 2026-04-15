@@ -177,3 +177,33 @@ func TestIntegrationResolvePathDeniedForUnscopedApp(t *testing.T) {
 		t.Fatal("expected resolve path error for unscoped app")
 	}
 }
+
+func TestIntegrationAppendPackageLog(t *testing.T) {
+	url := integrationSocketURL(t)
+	s := NewServer(url)
+	var sawApp, sawLevel, sawMsg string
+	s.SetPackageLogHook(func(appID, level, message string) error {
+		sawApp = appID
+		sawLevel = level
+		sawMsg = message
+		return nil
+	})
+	if err := s.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(s.Stop)
+
+	ctx := context.Background()
+	cli, err := talos.Dial(ctx, url)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	t.Cleanup(func() { _ = cli.Close() })
+
+	if err := cli.Log(ctx, "app.log.test", "WARN", "from-sdk"); err != nil {
+		t.Fatalf("Log: %v", err)
+	}
+	if sawApp != "app.log.test" || sawLevel != "WARN" || sawMsg != "from-sdk" {
+		t.Fatalf("hook got app=%q level=%q msg=%q", sawApp, sawLevel, sawMsg)
+	}
+}

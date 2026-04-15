@@ -27,6 +27,10 @@ When `allowed_origins` is **empty**, the host uses legacy behavior: replies use 
 
 Launchpad appends **`_talos_shell_origin=<encodeURIComponent(shellOrigin)>`** on every iframe URL in `withBridgeToken`; [`parentPostMessageTarget`](../../sdk/ts/src/iframe-bridge.ts) **reads that first**, so WebKit does not need a correct `ancestorOrigins` list. If the param is missing, the SDK falls back to scanning `ancestorOrigins` (first entry whose origin ≠ iframe) or `"*"`.
 
+## SDK logging (`packageSdkLog`)
+
+Iframe apps can append diagnostic lines through **`packageSdkLog`** with params `level` and `message`. The host writes to **`Temp/logs/packages/sdk/<app_id>.log`** only when **Development mode** is enabled for that package (same policy as manifest `development.*`). In production with dev mode off, the host accepts the request but performs no file write.
+
 ## Package loopback HTTP (`packageLocalHttp`)
 
 Mini-apps with a `binary` sidecar often serve a local HTTP API on `127.0.0.1`. **Embedded WebViews must not connect to that URL directly** (connection refused, policy, and timing). Instead the iframe calls bridge method **`packageLocalHttp`**, which runs [`PackageLocalHTTP`](../../package_local_http.go) in the host: it resolves the sidecar port (see lifecycle below), forwards **GET/POST** only to paths under **`/api/`**, and returns status + body to the iframe.

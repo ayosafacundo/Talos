@@ -84,6 +84,60 @@ func TestResolveManifestIcon_RelativeDistPNG(t *testing.T) {
 	}
 }
 
+func TestPackageStaticAssetURL_Icon(t *testing.T) {
+	t.Parallel()
+	pkgDir := filepath.Join(t.TempDir(), "Example Rust App")
+	if err := os.MkdirAll(filepath.Join(pkgDir, "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(pkgDir, "dist", "icon.webp")
+	if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	pkg := &packages.PackageInfo{
+		DirPath: pkgDir,
+		DirName: "Example Rust App",
+		Manifest: &manifest.Definition{
+			Icon: "dist/icon.webp",
+		},
+	}
+	u := packageStaticAssetURL(pkg, "dist/icon.webp")
+	if !strings.HasPrefix(u, "/talos-pkg/") || !strings.Contains(u, "dist") {
+		t.Fatalf("expected /talos-pkg/... path, got %q", u)
+	}
+}
+
+func TestResolveManifestIcon_RelativeDistWebP(t *testing.T) {
+	t.Parallel()
+	pkgDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(pkgDir, "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(pkgDir, "dist", "icon.webp")
+	// Minimal RIFF WEBP file header (valid enough for os.ReadFile + mime.TypeByExtension).
+	webp := []byte("RIFF\x24\x00\x00\x00WEBPVP8 ")
+	if err := os.WriteFile(p, webp, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	pkg := &packages.PackageInfo{
+		DirPath: pkgDir,
+		Manifest: &manifest.Definition{
+			Icon: "dist/icon.webp",
+		},
+	}
+	out := resolveManifestIcon(pkg)
+	if !strings.HasPrefix(out, "data:") || !strings.Contains(out, "base64,") {
+		t.Fatalf("expected data URL for webp, got prefix %q", truncateRunes(out, 80))
+	}
+}
+
+func truncateRunes(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
+}
+
 func TestResolveManifestIcon_FileURLPNG(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

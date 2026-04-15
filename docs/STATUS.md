@@ -52,7 +52,7 @@ This file tracks implementation maturity in a release-oriented format.
 
 ### Build and Dev Experience
 
-- `implemented` Makefile workflow (`proto`, `verify`, demos, `dev`, `app-build`)
+- `implemented` Makefile workflow (`proto`, `verify`, `dev`, `app-build`; Talos + Launchpad only)
 - `implemented` full doc set (`DEVELOPMENT_FULL`, `SDK_GUIDE`, `TINY_APP_INIT`)
 - `implemented` CI aligned with `make verify` (see `.github/workflows/ci.yml`)
 

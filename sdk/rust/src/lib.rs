@@ -8,7 +8,11 @@ pub mod hub {
 
 use anyhow::{anyhow, Context};
 use hub::v1::hub_service_client::HubServiceClient;
-use hub::v1::{BroadcastRequest, LoadStateRequest, Message, PermissionRequest, ResolvePathRequest, RouteRequest, SaveStateRequest};
+use hub::v1::{
+    AppendPackageLogRequest, BroadcastRequest, LoadStateRequest, Message, PermissionRequest, ResolvePathRequest, RouteRequest,
+    SaveStateRequest,
+};
+use std::path::Path;
 
 #[cfg(unix)]
 use std::path::PathBuf;
@@ -164,6 +168,44 @@ impl Client {
             return Err(anyhow!("resolve path denied: {}", resp.error));
         }
         Ok(resp.resolved_path)
+    }
+
+    /// Append one line to the host SDK log for this app when Launchpad package development is enabled (no-op on the host otherwise).
+    pub async fn append_package_log(&mut self, app_id: &str, level: &str, message: &str) -> anyhow::Result<()> {
+        let resp = self
+            .inner
+            .append_package_log(AppendPackageLogRequest {
+                app_id: app_id.to_string(),
+                level: level.to_string(),
+                message: message.to_string(),
+            })
+            .await
+            .context("append_package_log rpc")?
+            .into_inner();
+        if !resp.ok {
+            return Err(anyhow!("append package log failed: {}", resp.error));
+        }
+        Ok(())
+    }
+
+    pub async fn write_scoped_file(&mut self, app_id: &str, relative_path: &str, data: &[u8]) -> anyhow::Result<()> {
+        let path = self.resolve_path(app_id, relative_path).await?;
+        if let Some(parent) = Path::new(&path).parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .with_context(|| format!("create parent dirs for {path}"))?;
+        }
+        tokio::fs::write(&path, data)
+            .await
+            .with_context(|| format!("write scoped file {path}"))?;
+        Ok(())
+    }
+
+    pub async fn read_scoped_file(&mut self, app_id: &str, relative_path: &str) -> anyhow::Result<Vec<u8>> {
+        let path = self.resolve_path(app_id, relative_path).await?;
+        tokio::fs::read(&path)
+            .await
+            .with_context(|| format!("read scoped file {path}"))
     }
 }
 

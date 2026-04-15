@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime"
 	"net/http"
 	"net/url"
@@ -50,7 +51,8 @@ type App struct {
 	logsDir         string
 	hostLogPath     string
 	devLogPath      string
-	packageLogDir   string
+	packageLogDir    string
+	packageSDKLogDir string // Temp/logs/packages/sdk — iframe/native SDK logs when dev mode is on
 
 	mu       sync.RWMutex
 	packages map[string]*packages.PackageInfo
@@ -68,9 +70,9 @@ type App struct {
 
 	permissionAuditPath string
 
-	devMu              sync.RWMutex
-	prefsDeveloperMode bool
-	sqlStore           *minisql.Store
+	devMu               sync.RWMutex
+	prefsDevModeByDir map[string]bool // keyed by Packages/ child directory name
+	sqlStore          *minisql.Store
 
 	// sidecarLoopbackPort caches last successful loopback port per app (invalidated on dial failure / stop).
 	sidecarLoopbackMu   sync.RWMutex
@@ -87,9 +89,18 @@ type ThemeInfo struct {
 }
 
 type UserPrefs struct {
-	Theme         string            `json:"theme"`
-	TabColors     map[string]string `json:"tab_colors"`
-	DeveloperMode bool              `json:"developer_mode,omitempty"`
+	Theme               string            `json:"theme"`
+	TabColors           map[string]string `json:"tab_colors"`
+	DeveloperMode       bool              `json:"developer_mode,omitempty"` // legacy; cleared after migration
+	DevModeByPackageDir map[string]bool   `json:"dev_mode_by_dir,omitempty"`
+	DevPrefsMigrated    bool              `json:"dev_prefs_migrated,omitempty"`
+}
+
+// PackageDirDevRow is one row for Settings → Development mode (per directory under Packages/).
+type PackageDirDevRow struct {
+	DirName     string `json:"dir_name"`
+	HasManifest bool   `json:"has_manifest"`
+	DevMode     bool   `json:"dev_mode"`
 }
 
 // PackageLocalHTTPResponse is the result of proxying a package sidecar HTTP request through the host.
@@ -98,6 +109,7 @@ type PackageLocalHTTPResponse struct {
 	Status      int    `json:"status"`
 	ContentType string `json:"content_type"`
 	Body        string `json:"body"`
+	BodyBase64  string `json:"body_base64,omitempty"`
 }
 
 // packageAssetURL returns a same-origin path for the package web entry (served by talosPackageMiddleware).
@@ -116,6 +128,45 @@ func packageAssetURL(pkg *packages.PackageInfo, webEntry string) string {
 		return ""
 	}
 	rel, err := filepath.Rel(pkgRoot, webPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	dirName := strings.TrimSpace(pkg.DirName)
+	if dirName == "" {
+		dirName = filepath.Base(pkg.DirPath)
+	}
+	relSlash := filepath.ToSlash(rel)
+	var segs []string
+	for _, s := range strings.Split(relSlash, "/") {
+		if s == "" || s == "." {
+			continue
+		}
+		if s == ".." {
+			return ""
+		}
+		segs = append(segs, url.PathEscape(s))
+	}
+	if len(segs) == 0 {
+		return ""
+	}
+	return talosPackageURLPrefix + url.PathEscape(dirName) + "/" + strings.Join(segs, "/")
+}
+
+// packageStaticAssetURL builds /talos-pkg/<package-dir>/<path> for a manifest-relative file (e.g. icon).
+// Used when the icon could not be inlined so the Launchpad UI can still load it over the same origin.
+func packageStaticAssetURL(pkg *packages.PackageInfo, manifestRelative string) string {
+	if pkg == nil {
+		return ""
+	}
+	iconPath, ok := manifestRelativeIconPath(filepath.Clean(pkg.DirPath), manifestRelative)
+	if !ok {
+		return ""
+	}
+	pkgRoot, err := filepath.Abs(filepath.Clean(pkg.DirPath))
+	if err != nil {
+		return ""
+	}
+	rel, err := filepath.Rel(pkgRoot, iconPath)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return ""
 	}
@@ -174,6 +225,9 @@ type AppManifestView struct {
 const launchpadPackageID = "app.launchpad"
 const devServerLogName = "launchpad-dev"
 
+// packageSdkLogMaxBytes caps a single SDK log line body (host-enforced).
+const packageSdkLogMaxBytes = 16 * 1024
+
 func resolveRootDir() string {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -203,12 +257,14 @@ func NewApp() *App {
 		hostLogPath:         filepath.Join(rootDir, "Temp", "logs", "talos.log"),
 		devLogPath:          filepath.Join(rootDir, "Temp", "logs", "launchpad-dev.log"),
 		packageLogDir:       filepath.Join(rootDir, "Temp", "logs", "packages"),
+		packageSDKLogDir:    filepath.Join(rootDir, "Temp", "logs", "packages", "sdk"),
 		permissionAuditPath: filepath.Join(rootDir, "Temp", "logs", "permission_audit.jsonl"),
 		packages:            make(map[string]*packages.PackageInfo),
 		devResolvedURL:      make(map[string]string),
 		devReachCache:       make(map[string]devReachOutcome),
 		sqlStore:            minisql.NewStore(rootDir),
 		sidecarLoopbackPort: make(map[string]string),
+		prefsDevModeByDir:   make(map[string]bool),
 	}
 }
 
@@ -354,6 +410,9 @@ func (a *App) startup(ctx context.Context) {
 		}
 		return resolved, true, nil
 	})
+	a.hub.SetPackageLogHook(func(appID, level, message string) error {
+		return a.appendPackageSDKLog(appID, level, message)
+	})
 
 	if err := a.hub.Start(); err != nil {
 		runtime.LogErrorf(a.ctx, "hub start failed: %v", err)
@@ -378,7 +437,10 @@ func (a *App) startup(ctx context.Context) {
 
 	if p, err := a.LoadUserPrefs(); err == nil {
 		a.devMu.Lock()
-		a.prefsDeveloperMode = p.DeveloperMode
+		a.prefsDevModeByDir = maps.Clone(p.DevModeByPackageDir)
+		if a.prefsDevModeByDir == nil {
+			a.prefsDevModeByDir = make(map[string]bool)
+		}
 		a.devMu.Unlock()
 	}
 }
@@ -422,10 +484,15 @@ func (a *App) StartPackage(packageID string) error {
 		return fmt.Errorf("create app data dir failed: %w", err)
 	}
 
+	devPkg := "0"
+	if a.developmentEnabledForPackage(pkg) {
+		devPkg = "1"
+	}
 	env := map[string]string{
-		"TALOS_APP_ID":       pkg.Manifest.ID,
-		"TALOS_APP_DATA_DIR": dataDir,
-		"TALOS_HUB_SOCKET":   a.hub.SocketURL(),
+		"TALOS_APP_ID":                pkg.Manifest.ID,
+		"TALOS_APP_DATA_DIR":          dataDir,
+		"TALOS_HUB_SOCKET":            a.hub.SocketURL(),
+		"TALOS_PACKAGE_DEVELOPMENT":   devPkg,
 	}
 	if a.sqlStore != nil {
 		if dsn, _, err := a.sqlStore.Provision(packageID); err == nil {
@@ -441,43 +508,75 @@ func (a *App) StartPackage(packageID string) error {
 	a.logInfo("package", fmt.Sprintf("started %s (log: %s)", packageID, filepath.Join(a.packageLogDir, packageID+".log")))
 	go a.promptDeclaredNetworkPermissions(pkg)
 
-	if a.effectiveDevelopmentEnabled() && pkg.Manifest.Development != nil && len(pkg.Manifest.Development.Command) > 0 {
-		a.clearDevResolvedURL(packageID)
-		manifestDev := strings.TrimSpace(pkg.Manifest.Development.URL)
-		waitForInitialResolve := manifestDev == ""
-		resolvedFirst := make(chan struct{}, 1)
-		devOpts := &process.DevStartOptions{
-			ManifestDevURL: manifestDev,
-			OnResolvedURL: func(resolved string) {
-				aligned := process.AlignDiscoveredDevURL(manifestDev, resolved)
-				a.setDevResolvedURL(packageID, aligned)
-				if waitForInitialResolve {
-					select {
-					case resolvedFirst <- struct{}{}:
-					default:
-					}
-				}
-				runtime.EventsEmit(a.ctx, "package:dev-url", map[string]string{
-					"app_id": packageID,
-					"url":    aligned,
-				})
-			},
-		}
-		if err := a.processManager.StartDev(a.ctx, pkg, pkg.Manifest.Development.Command, devOpts); err != nil {
-			a.logError("package", fmt.Sprintf("dev server start failed for %s: %v", packageID, err))
-		} else {
-			a.logInfo("package", fmt.Sprintf("dev server started for %s", packageID))
-			if waitForInitialResolve {
-				select {
-				case <-resolvedFirst:
-				case <-time.After(3 * time.Second):
-				}
-			}
-		}
-	}
+	a.startPackageDevServer(pkg)
 	// Next manifest read (e.g. GetInstalledApps after launch) should re-probe dev loopback, not reuse a stale packaged fallback from before Vite was ready.
 	a.clearDevReachCacheForApp(packageID)
 	return nil
+}
+
+// restartPackageSidecarIfAny stops a running package binary (if any) and starts it again so it picks up
+// current host env such as TALOS_PACKAGE_DEVELOPMENT. Package binaries are started idempotently when
+// already running, so toggling dev mode in Settings would otherwise leave a stale env.
+func (a *App) restartPackageSidecarIfAny(packageID string) {
+	a.mu.RLock()
+	pkg := a.packages[packageID]
+	a.mu.RUnlock()
+	if pkg == nil || pkg.Manifest == nil || pkg.Manifest.Binary == "" {
+		return
+	}
+	if !a.processManager.IsRunning(packageID) {
+		return
+	}
+	_ = a.processManager.Stop(packageID)
+	if err := a.StartPackage(packageID); err != nil {
+		a.logError("package", fmt.Sprintf("restart sidecar %s after dev-mode change: %v", packageID, err))
+	}
+}
+
+// startPackageDevServer spawns manifest development.command when per-directory (or source dev) policy allows it.
+func (a *App) startPackageDevServer(pkg *packages.PackageInfo) {
+	if pkg == nil || pkg.Manifest == nil {
+		return
+	}
+	if !a.developmentEnabledForPackage(pkg) {
+		return
+	}
+	if pkg.Manifest.Development == nil || len(pkg.Manifest.Development.Command) == 0 {
+		return
+	}
+	packageID := pkg.Manifest.ID
+	a.clearDevResolvedURL(packageID)
+	manifestDev := strings.TrimSpace(pkg.Manifest.Development.URL)
+	waitForInitialResolve := manifestDev == ""
+	resolvedFirst := make(chan struct{}, 1)
+	devOpts := &process.DevStartOptions{
+		ManifestDevURL: manifestDev,
+		OnResolvedURL: func(resolved string) {
+			aligned := process.AlignDiscoveredDevURL(manifestDev, resolved)
+			a.setDevResolvedURL(packageID, aligned)
+			if waitForInitialResolve {
+				select {
+				case resolvedFirst <- struct{}{}:
+				default:
+				}
+			}
+			runtime.EventsEmit(a.ctx, "package:dev-url", map[string]string{
+				"app_id": packageID,
+				"url":    aligned,
+			})
+		},
+	}
+	if err := a.processManager.StartDev(a.ctx, pkg, pkg.Manifest.Development.Command, devOpts); err != nil {
+		a.logError("package", fmt.Sprintf("dev server start failed for %s: %v", packageID, err))
+	} else {
+		a.logInfo("package", fmt.Sprintf("dev server started for %s", packageID))
+		if waitForInitialResolve {
+			select {
+			case <-resolvedFirst:
+			case <-time.After(3 * time.Second):
+			}
+		}
+	}
 }
 
 func (a *App) promptDeclaredNetworkPermissions(pkg *packages.PackageInfo) {
@@ -796,6 +895,12 @@ func (a *App) LoadAppStateBase64(appID string) string {
 }
 
 func (a *App) handlePackageEvent(evt packages.DiscoveryEvent) {
+	if evt.Type == packages.EventError {
+		if msg := strings.TrimSpace(evt.Error); msg != "" {
+			a.logError("packages", "discovery: "+msg)
+		}
+		return
+	}
 	if evt.PackageID == "" {
 		return
 	}
@@ -935,6 +1040,7 @@ func (a *App) GetLogCatalog() map[string]string {
 	}
 	for id := range a.packages {
 		out["package:"+id] = filepath.Join(a.packageLogDir, id+".log")
+		out["package-sdk:"+id] = filepath.Join(a.packageSDKLogDir, id+".log")
 	}
 	return out
 }
@@ -985,6 +1091,13 @@ func (a *App) resolveLogSourcePath(source string) (string, error) {
 		}
 		return filepath.Join(a.packageLogDir, id+".log"), nil
 	}
+	if strings.HasPrefix(source, "package-sdk:") {
+		id := strings.TrimPrefix(source, "package-sdk:")
+		if strings.TrimSpace(id) == "" {
+			return "", errors.New("invalid package sdk log source")
+		}
+		return filepath.Join(a.packageSDKLogDir, id+".log"), nil
+	}
 	return "", fmt.Errorf("unknown log source %q", source)
 }
 
@@ -992,9 +1105,11 @@ func (a *App) resolveLogSourcePath(source string) (string, error) {
 func (a *App) GetRuntimeInfo() map[string]any {
 	return map[string]any{
 		"dev_mode":                     buildmode.DevelopmentAllowed(),
+		"source_dev_extras":            buildmode.DevelopmentAllowed(),
 		"developer_mode":               a.GetDeveloperMode(),
 		"effective_development":        a.effectiveDevelopmentEnabled(),
 		"development_features_enabled": a.DevelopmentFeaturesEnabled(),
+		"talos_dev_mode_env":           strings.TrimSpace(os.Getenv("TALOS_DEV_MODE")),
 	}
 }
 
@@ -1031,9 +1146,46 @@ func (a *App) SaveUserPrefs(prefs UserPrefs) error {
 		return err
 	}
 	a.devMu.Lock()
-	a.prefsDeveloperMode = prefs.DeveloperMode
+	if prefs.DevModeByPackageDir != nil {
+		a.prefsDevModeByDir = maps.Clone(prefs.DevModeByPackageDir)
+	} else {
+		a.prefsDevModeByDir = make(map[string]bool)
+	}
 	a.devMu.Unlock()
 	return nil
+}
+
+// migrateLegacyDevPrefsInFile upgrades pre–per-directory prefs once and rewrites user_prefs.json.
+func (a *App) migrateLegacyDevPrefsInFile(prefs *UserPrefs) error {
+	if prefs.DevPrefsMigrated {
+		return nil
+	}
+	if prefs.DevModeByPackageDir == nil {
+		prefs.DevModeByPackageDir = map[string]bool{}
+	}
+	if prefs.DeveloperMode {
+		entries, err := os.ReadDir(a.packagesDir)
+		if err != nil {
+			a.logError("prefs", fmt.Sprintf("migrate legacy developer_mode: list Packages: %v", err))
+		} else {
+			for _, e := range entries {
+				if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+					prefs.DevModeByPackageDir[e.Name()] = true
+				}
+			}
+		}
+	}
+	prefs.DeveloperMode = false
+	prefs.DevPrefsMigrated = true
+	path := filepath.Join(a.rootDir, "Temp", "user_prefs.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	raw, err := json.MarshalIndent(prefs, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, raw, 0o600)
 }
 
 // LoadUserPrefs loads persisted UI preferences if available.
@@ -1042,7 +1194,12 @@ func (a *App) LoadUserPrefs() (UserPrefs, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return UserPrefs{Theme: "minecraft", TabColors: map[string]string{}, DeveloperMode: false}, nil
+			return UserPrefs{
+				Theme:               "minecraft",
+				TabColors:           map[string]string{},
+				DevModeByPackageDir: map[string]bool{},
+				DevPrefsMigrated:    true,
+			}, nil
 		}
 		return UserPrefs{}, err
 	}
@@ -1056,6 +1213,12 @@ func (a *App) LoadUserPrefs() (UserPrefs, error) {
 	}
 	if strings.TrimSpace(prefs.Theme) == "" {
 		prefs.Theme = "minecraft"
+	}
+	if prefs.DevModeByPackageDir == nil {
+		prefs.DevModeByPackageDir = map[string]bool{}
+	}
+	if err := a.migrateLegacyDevPrefsInFile(&prefs); err != nil {
+		return UserPrefs{}, err
 	}
 	return prefs, nil
 }
@@ -1105,24 +1268,110 @@ func (a *App) clearDevResolvedURL(appID string) {
 	a.clearDevReachCacheForApp(appID)
 }
 
-// effectiveDevelopmentEnabled is true when manifest development.* should be honored:
-// machine env TALOS_DEV_MODE=1 or user enabled Developer mode in Settings.
+// developmentEnabledForPackage is true when manifest development.* may be used for this package directory.
+// Source builds honor TALOS_DEV_MODE=1 globally; release builds use only per-directory Settings toggles.
+func (a *App) developmentEnabledForPackage(pkg *packages.PackageInfo) bool {
+	if pkg == nil {
+		return false
+	}
+	if buildmode.DevelopmentAllowed() {
+		return true
+	}
+	dir := strings.TrimSpace(pkg.DirName)
+	if dir == "" {
+		dir = filepath.Base(pkg.DirPath)
+	}
+	a.devMu.RLock()
+	defer a.devMu.RUnlock()
+	return a.prefsDevModeByDir[dir]
+}
+
+func (a *App) packageByAppID(appID string) *packages.PackageInfo {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.packages[appID]
+}
+
+// appendPackageSDKLog appends one line to Temp/logs/packages/sdk/<app_id>.log when Development mode is on for that package.
+func (a *App) appendPackageSDKLog(appID, level, message string) error {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil
+	}
+	pkg := a.packageByAppID(appID)
+	if pkg == nil || !a.developmentEnabledForPackage(pkg) {
+		return nil
+	}
+	level = strings.TrimSpace(level)
+	if level == "" {
+		level = "INFO"
+	}
+	msg := strings.TrimSpace(message)
+	if len(msg) > packageSdkLogMaxBytes {
+		msg = msg[:packageSdkLogMaxBytes] + "…"
+	}
+	msg = strings.ReplaceAll(msg, "\r\n", " ")
+	msg = strings.ReplaceAll(msg, "\n", " ")
+	if err := os.MkdirAll(a.packageSDKLogDir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(a.packageSDKLogDir, appID+".log")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	line := fmt.Sprintf("%s [%s] %s\n", time.Now().Format(time.RFC3339), strings.ToUpper(level), msg)
+	_, err = f.WriteString(line)
+	return err
+}
+
+// PackageSdkLog is the Wails binding for iframe SDK logging (hub AppendPackageLog uses the same append path).
+func (a *App) PackageSdkLog(appID, level, message string) error {
+	return a.appendPackageSDKLog(appID, level, message)
+}
+
+// effectiveDevelopmentEnabled is true when any development path is active (env override or any per-dir toggle).
 func (a *App) effectiveDevelopmentEnabled() bool {
 	if buildmode.DevelopmentAllowed() {
 		return true
 	}
 	a.devMu.RLock()
 	defer a.devMu.RUnlock()
-	return a.prefsDeveloperMode
+	for _, on := range a.prefsDevModeByDir {
+		if on {
+			return true
+		}
+	}
+	return false
 }
 
-// SetDeveloperMode persists the Settings toggle and stops dev servers when disabling.
+// SetDeveloperMode is legacy bulk control: enabling turns on development for all package directories;
+// disabling clears all per-directory toggles and stops dev servers.
 func (a *App) SetDeveloperMode(enabled bool) error {
 	prefs, err := a.LoadUserPrefs()
 	if err != nil {
-		prefs = UserPrefs{Theme: "minecraft", TabColors: map[string]string{}}
+		prefs = UserPrefs{Theme: "minecraft", TabColors: map[string]string{}, DevModeByPackageDir: map[string]bool{}, DevPrefsMigrated: true}
 	}
-	prefs.DeveloperMode = enabled
+	if prefs.DevModeByPackageDir == nil {
+		prefs.DevModeByPackageDir = map[string]bool{}
+	}
+	prefs.DeveloperMode = false
+	prefs.DevPrefsMigrated = true
+	if !enabled {
+		prefs.DevModeByPackageDir = map[string]bool{}
+	} else {
+		entries, rerr := os.ReadDir(a.packagesDir)
+		if rerr != nil {
+			a.logError("dev", fmt.Sprintf("SetDeveloperMode list dirs: %v", rerr))
+		} else {
+			for _, e := range entries {
+				if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+					prefs.DevModeByPackageDir[e.Name()] = true
+				}
+			}
+		}
+	}
 	if err := a.SaveUserPrefs(prefs); err != nil {
 		return err
 	}
@@ -1131,20 +1380,163 @@ func (a *App) SetDeveloperMode(enabled bool) error {
 		a.devResolvedMu.Lock()
 		a.devResolvedURL = make(map[string]string)
 		a.devResolvedMu.Unlock()
+		a.mu.RLock()
+		restartIDs := make([]string, 0, len(a.packages))
+		for id, pkg := range a.packages {
+			if pkg != nil && pkg.Manifest != nil && pkg.Manifest.Binary != "" {
+				restartIDs = append(restartIDs, id)
+			}
+		}
+		a.mu.RUnlock()
+		for _, id := range restartIDs {
+			a.restartPackageSidecarIfAny(id)
+		}
+	} else {
+		a.mu.RLock()
+		pkgs := make([]*packages.PackageInfo, 0, len(a.packages))
+		for _, pkg := range a.packages {
+			if pkg != nil {
+				pkgs = append(pkgs, pkg)
+			}
+		}
+		a.mu.RUnlock()
+		for _, pkg := range pkgs {
+			if pkg.Manifest != nil && pkg.Manifest.Binary != "" {
+				a.restartPackageSidecarIfAny(pkg.Manifest.ID)
+			} else {
+				a.startPackageDevServer(pkg)
+			}
+		}
 	}
 	return nil
 }
 
-// GetDeveloperMode returns the persisted Settings flag (not including TALOS_DEV_MODE alone).
+// GetDeveloperMode reports whether any package directory has development mode enabled in Settings
+// (does not reflect TALOS_DEV_MODE; use GetRuntimeInfo for that).
 func (a *App) GetDeveloperMode() bool {
 	a.devMu.RLock()
 	defer a.devMu.RUnlock()
-	return a.prefsDeveloperMode
+	for _, on := range a.prefsDevModeByDir {
+		if on {
+			return true
+		}
+	}
+	return false
+}
+
+func safePackageDirName(dirName string) (string, error) {
+	dirName = strings.TrimSpace(dirName)
+	if dirName == "" || dirName == "." || dirName == ".." {
+		return "", errors.New("invalid package directory name")
+	}
+	if strings.Contains(dirName, string(filepath.Separator)) || strings.Contains(dirName, "/") || strings.Contains(dirName, "\\") {
+		return "", errors.New("invalid package directory name")
+	}
+	return dirName, nil
+}
+
+// ListPackageDirectoriesDevSettings lists immediate children of Packages/ for the Development mode settings UI.
+func (a *App) ListPackageDirectoriesDevSettings() []PackageDirDevRow {
+	entries, err := os.ReadDir(a.packagesDir)
+	if err != nil {
+		a.logError("dev", fmt.Sprintf("list Packages subdirs: %v", err))
+		return nil
+	}
+	a.devMu.RLock()
+	prefs := maps.Clone(a.prefsDevModeByDir)
+	a.devMu.RUnlock()
+	if prefs == nil {
+		prefs = map[string]bool{}
+	}
+	out := make([]PackageDirDevRow, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		name := e.Name()
+		manifestPath := filepath.Join(a.packagesDir, name, "manifest.yaml")
+		_, stErr := os.Stat(manifestPath)
+		out = append(out, PackageDirDevRow{
+			DirName:     name,
+			HasManifest: stErr == nil,
+			DevMode:     prefs[name],
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].DirName < out[j].DirName })
+	return out
+}
+
+// SetPackageDirectoryDevMode persists per-directory development mode and starts or stops dev servers for packages in that directory.
+func (a *App) SetPackageDirectoryDevMode(dirName string, enabled bool) error {
+	dirName, err := safePackageDirName(dirName)
+	if err != nil {
+		return err
+	}
+	full := filepath.Join(a.packagesDir, dirName)
+	st, statErr := os.Stat(full)
+	if statErr != nil || !st.IsDir() {
+		return fmt.Errorf("package directory not found: %w", statErr)
+	}
+	prefs, err := a.LoadUserPrefs()
+	if err != nil {
+		prefs = UserPrefs{Theme: "minecraft", TabColors: map[string]string{}, DevModeByPackageDir: map[string]bool{}, DevPrefsMigrated: true}
+	}
+	if prefs.DevModeByPackageDir == nil {
+		prefs.DevModeByPackageDir = map[string]bool{}
+	}
+	prefs.DevPrefsMigrated = true
+	prefs.DeveloperMode = false
+	if enabled {
+		prefs.DevModeByPackageDir[dirName] = true
+	} else {
+		delete(prefs.DevModeByPackageDir, dirName)
+	}
+	if err := a.SaveUserPrefs(prefs); err != nil {
+		return err
+	}
+	a.syncDevForPackageDir(dirName, enabled)
+	return nil
+}
+
+func (a *App) syncDevForPackageDir(dirName string, enabled bool) {
+	if !enabled {
+		a.mu.RLock()
+		ids := make([]string, 0, 4)
+		for id, pkg := range a.packages {
+			if pkg != nil && pkg.DirName == dirName && pkg.Manifest != nil {
+				ids = append(ids, id)
+			}
+		}
+		a.mu.RUnlock()
+		for _, id := range ids {
+			a.clearDevResolvedURL(id)
+			_ = a.processManager.StopDev(id)
+			a.restartPackageSidecarIfAny(id)
+		}
+		a.logInfo("dev", fmt.Sprintf("development mode disabled for directory %q", dirName))
+		return
+	}
+	a.mu.RLock()
+	pkgs := make([]*packages.PackageInfo, 0, 4)
+	for _, pkg := range a.packages {
+		if pkg != nil && pkg.DirName == dirName {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+	a.mu.RUnlock()
+	for _, pkg := range pkgs {
+		if pkg.Manifest != nil && pkg.Manifest.Binary != "" {
+			a.restartPackageSidecarIfAny(pkg.Manifest.ID)
+		} else {
+			a.startPackageDevServer(pkg)
+		}
+	}
+	a.logInfo("dev", fmt.Sprintf("development mode enabled for directory %q", dirName))
 }
 
 // manifestDevIFrameURL returns iframe URL and bridge origins, applying a discovered dev-server URL when present.
 func (a *App) manifestDevIFrameURL(pkg *packages.PackageInfo) (u string, origins []string, dev bool) {
-	u, origins, dev = resolvePackageURL(pkg, a.effectiveDevelopmentEnabled())
+	u, origins, dev = resolvePackageURL(pkg, a.developmentEnabledForPackage(pkg))
 	if !dev || pkg == nil || pkg.Manifest == nil {
 		return u, origins, dev
 	}
@@ -1206,6 +1598,13 @@ func (a *App) manifestViewForPackage(pkg *packages.PackageInfo) AppManifestView 
 	}
 	url, origins, dev := a.manifestDevIFrameURL(pkg)
 	icon := resolveManifestIcon(pkg)
+	if icon != "" && !strings.HasPrefix(strings.ToLower(icon), "data:") &&
+		!strings.HasPrefix(icon, "http://") && !strings.HasPrefix(icon, "https://") &&
+		!strings.HasPrefix(strings.ToLower(icon), "file://") {
+		if u := packageStaticAssetURL(pkg, pkg.Manifest.Icon); u != "" {
+			icon = u
+		}
+	}
 	hashPath := filepath.Join(a.hashDir(), pkg.Manifest.ID+".json")
 	ts, err := packageinstall.EvaluateTrust(pkg.DirPath, hashPath, a.trustedKeysDir())
 	trust := string(ts)
@@ -1242,6 +1641,13 @@ func packageToManifestView(pkg *packages.PackageInfo) AppManifestView {
 	}
 	url, origins, dev := resolvePackageURL(pkg, false)
 	icon := resolveManifestIcon(pkg)
+	if icon != "" && !strings.HasPrefix(strings.ToLower(icon), "data:") &&
+		!strings.HasPrefix(icon, "http://") && !strings.HasPrefix(icon, "https://") &&
+		!strings.HasPrefix(strings.ToLower(icon), "file://") {
+		if u := packageStaticAssetURL(pkg, pkg.Manifest.Icon); u != "" {
+			icon = u
+		}
+	}
 	desc := strings.TrimSpace(pkg.Manifest.Description)
 	if desc == "" {
 		desc = "Installed Tiny App"

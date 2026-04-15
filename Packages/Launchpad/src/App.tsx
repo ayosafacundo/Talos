@@ -4,8 +4,6 @@ import {
   BroadcastMessage,
   DenyPermission,
   DevelopmentFeaturesEnabled,
-  GetDeveloperMode,
-  SetDeveloperMode,
   GetInstalledApps,
   GetThemes,
   GrantPermission,
@@ -15,12 +13,15 @@ import {
   DefaultUpdateChannelURL,
   ListPermissionAudit,
   ListPermissionEntries,
+  ListPackageDirectoriesDevSettings,
   ListRepositoryPackages,
   LoadUserPrefs,
   PackageLocalHTTP,
+  PackageSdkLog,
   ParanoidPackageTrust,
   PickZipAndInstall,
   SaveUserPrefs,
+  SetPackageDirectoryDevMode,
   GetStoreApps,
   GetStartupLaunchpad,
   LoadAppStateBase64,
@@ -211,6 +212,17 @@ function isLikelyAssetPath(value: string): boolean {
   return value.includes("/") || value.startsWith("./") || value.startsWith("../");
 }
 
+function isLoopbackHttpURL(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const h = u.hostname.toLowerCase();
+    return h === "localhost" || h === "127.0.0.1" || h === "::1" || h.startsWith("127.");
+  } catch {
+    return false;
+  }
+}
+
 function iconURLForApp(app?: main.AppManifestView): string {
   if (!app) return "";
   const icon = String(app.icon || "");
@@ -224,11 +236,16 @@ function iconURLForApp(app?: main.AppManifestView): string {
   ) {
     return icon;
   }
+  // Host may serve icons as same-origin paths even when the iframe uses a dev-server URL.
+  if (icon.startsWith("/talos-pkg/")) {
+    return icon;
+  }
   if (!isLikelyAssetPath(icon)) return "";
   const appURL = String(app.url || "");
   const isFile = appURL.startsWith("file://");
   const isPkg = appURL.startsWith("/talos-pkg/");
-  if (!isFile && !isPkg) return "";
+  const isDevLoopback = isLoopbackHttpURL(appURL);
+  if (!isFile && !isPkg && !isDevLoopback) return "";
 
   const marker = "/dist/";
   const idx = appURL.indexOf(marker);
@@ -237,6 +254,9 @@ function iconURLForApp(app?: main.AppManifestView): string {
     return `${packageRoot}/${icon.replace(/^\/+/, "")}`;
   }
   try {
+    if (isDevLoopback) {
+      return new URL(icon.replace(/^\/+/, ""), appURL).toString();
+    }
     const base = isFile ? appURL : `https://local.invalid${appURL}`;
     const resolved = new URL(icon, base);
     if (isPkg) {
@@ -368,7 +388,8 @@ export default function App(): React.ReactElement {
   const [updateChannelURL, setUpdateChannelURL] = useState("");
   const [updateCheckResult, setUpdateCheckResult] = useState<string>("");
   const [installUiEnabled, setInstallUiEnabled] = useState(false);
-  const [developerMode, setDeveloperMode] = useState(false);
+  const [packageDirDevSettings, setPackageDirDevSettings] = useState<main.PackageDirDevRow[]>([]);
+  const [packageDirDevBusy, setPackageDirDevBusy] = useState<string | null>(null);
   const [installMessage, setInstallMessage] = useState("");
   const [installBusy, setInstallBusy] = useState(false);
   const [urlInstall, setUrlInstall] = useState("");
@@ -438,6 +459,23 @@ export default function App(): React.ReactElement {
     setPermissionEntries(rows ?? []);
     setPermissionAudit(audit ?? []);
   }
+
+  useEffect(() => {
+    if (!settingsVisible || settingsTab !== "developer") {
+      return;
+    }
+    let cancelled = false;
+    void ListPackageDirectoriesDevSettings()
+      .then((rows) => {
+        if (!cancelled) setPackageDirDevSettings(rows ?? []);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) console.warn("ListPackageDirectoriesDevSettings:", e);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsVisible, settingsTab]);
 
   function hideContextMenu(): void {
     setContextMenuState((prev) => ({ ...prev, visible: false }));
@@ -759,6 +797,17 @@ export default function App(): React.ReactElement {
           respond(true, out, "", parsed.requestId);
           return;
         }
+        if (method === "packageSdkLog") {
+          const level = String(params.level || "INFO").trim();
+          const msg = String(params.message || "");
+          try {
+            await PackageSdkLog(manifestId, level, msg);
+            respond(true, { ok: true }, "", parsed.requestId);
+          } catch (e: unknown) {
+            respond(false, null, String(e), parsed.requestId);
+          }
+          return;
+        }
         if (method === "packageLocalHttp") {
           const httpMethod = String(params.method || "GET").trim().toUpperCase();
           const httpPath = String(params.path || "");
@@ -770,6 +819,7 @@ export default function App(): React.ReactElement {
               status: out.status,
               content_type: out.content_type,
               body: out.body,
+              body_base64: out.body_base64 ?? "",
             },
             "",
             parsed.requestId,
@@ -866,7 +916,6 @@ export default function App(): React.ReactElement {
         }
         await reloadCatalog();
         await reloadThemes();
-        void GetDeveloperMode().then((v) => setDeveloperMode(!!v));
         void DevelopmentFeaturesEnabled().then((v) => setInstallUiEnabled(!!v));
         void ListRepositoryPackages()
           .then((rows) => {
@@ -1211,8 +1260,7 @@ export default function App(): React.ReactElement {
                 <section className="add-package">
                   <h2>Add package</h2>
                   <p className="perm-hint">
-                    Install from a local zip, an HTTPS URL to a zip archive, or a GitHub repository zipball (development
-                    mode only).
+                    Install from a local zip, an HTTPS URL to a zip archive, or a GitHub repository zipball.
                   </p>
                   {installMessage ? <div className="install-msg">{installMessage}</div> : null}
                   <div className="install-row">
@@ -1563,34 +1611,54 @@ export default function App(): React.ReactElement {
 
                 {settingsTab === "developer" && (
                   <div>
-                    <h3>Developer mode</h3>
+                    <h3>Development mode</h3>
                     <p className="perm-hint">
-                      When enabled, installed packages that declare <code>development.command</code> can run dev servers (for example{" "}
-                      <code>npm run dev</code>) and use loopback dev URLs instead of only bundled static assets under{" "}
-                      <code>/talos-pkg/</code>. Commands come from package manifests—enable only for packages you trust.
+                      Each folder under <code>Packages/</code> defaults to <strong>production</strong> (static assets served via{" "}
+                      <code>/talos-pkg/</code>). Turn on <strong>development</strong> only for a folder when you want that package’s manifest{" "}
+                      <code>development.command</code> / dev URL (for example <code>npm run dev</code>). Commands come from manifests—enable only
+                      for folders you trust.
                     </p>
-                    <label className="dev-mode-toggle">
-                      <input
-                        type="checkbox"
-                        checked={developerMode}
-                        onChange={(e) => {
-                          const v = e.target.checked;
-                          void SetDeveloperMode(v)
-                            .then(() => {
-                              setDeveloperMode(v);
-                              return reloadCatalog();
-                            })
-                            .then(() =>
-                              DevelopmentFeaturesEnabled().then((en) => setInstallUiEnabled(!!en)),
-                            );
-                        }}
-                      />
-                      <span>Enable developer mode (manifest dev commands)</span>
-                    </label>
                     <p className="perm-hint">
-                      Machine override: set environment variable <code>TALOS_DEV_MODE=1</code> to enable the same behavior without this toggle
-                      (useful for automation).
+                      Release installs ignore <code>TALOS_DEV_MODE</code>. From a source tree, <code>TALOS_DEV_MODE=1</code> (e.g.{" "}
+                      <code>make dev</code>) still enables Talos SDK/backend diagnostics for all packages.
                     </p>
+                    <ul className="package-dev-dir-list">
+                      {packageDirDevSettings.length === 0 ? (
+                        <li className="package-dev-dir-empty">No package directories found under Packages/.</li>
+                      ) : (
+                        packageDirDevSettings.map((row) => (
+                          <li key={row.dir_name} className="package-dev-dir-row">
+                            <div className="package-dev-dir-info">
+                              <code className="package-dev-dir-name">{row.dir_name}</code>
+                              <span className={`package-dev-manifest-badge ${row.has_manifest ? "yes" : "no"}`}>
+                                {row.has_manifest ? "manifest" : "no manifest"}
+                              </span>
+                              <span className="package-dev-mode-label">{row.dev_mode ? "Development" : "Production"}</span>
+                            </div>
+                            <label className="package-dev-switch">
+                              <input
+                                type="checkbox"
+                                role="switch"
+                                aria-checked={row.dev_mode}
+                                checked={row.dev_mode}
+                                disabled={packageDirDevBusy === row.dir_name}
+                                onChange={(e) => {
+                                  const v = e.target.checked;
+                                  setPackageDirDevBusy(row.dir_name);
+                                  void SetPackageDirectoryDevMode(row.dir_name, v)
+                                    .then(() => reloadCatalog())
+                                    .then(() => ListPackageDirectoriesDevSettings())
+                                    .then((rows) => setPackageDirDevSettings(rows ?? []))
+                                    .catch((err: unknown) => console.warn("SetPackageDirectoryDevMode:", err))
+                                    .finally(() => setPackageDirDevBusy(null));
+                                }}
+                              />
+                              <span className="package-dev-switch-slider" />
+                            </label>
+                          </li>
+                        ))
+                      )}
+                    </ul>
                   </div>
                 )}
 

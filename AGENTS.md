@@ -10,3 +10,4 @@ Implementers (including AI agents) **may and should** ask for guidance before ma
 - UX copy for risk disclosures
 
 Prefer a short, concrete question over guessing a broad design.
+Prefer an open question over guessing what the user wants.

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -33,6 +34,7 @@ type Server struct {
 	stateLoadHook         func(appID string) ([]byte, bool, error)
 	permissionRequestHook func(appID, scope, reason string) (bool, string, error)
 	resolvePathHook       func(appID, relativePath string) (string, bool, error)
+	packageLogHook        func(appID, level, message string) error
 
 	grpcServer *grpc.Server
 	listener   net.Listener
@@ -72,7 +74,11 @@ func (s *Server) Start() error {
 	s.listener = listener
 	s.mu.Unlock()
 
-	go server.Serve(listener)
+	go func() {
+		if err := server.Serve(listener); err != nil {
+			log.Printf("hub: grpc Serve ended: %v", err)
+		}
+	}()
 	return nil
 }
 
@@ -132,6 +138,13 @@ func (s *Server) SetResolvePathHook(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.resolvePathHook = hook
+}
+
+// SetPackageLogHook receives SDK log lines from native packages (no-op when dev mode is off for that app).
+func (s *Server) SetPackageLogHook(hook func(appID, level, message string) error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.packageLogHook = hook
 }
 
 func (s *Server) Route(ctx context.Context, req *hubpb.RouteRequest) (*hubpb.RouteResponse, error) {
@@ -269,6 +282,24 @@ func (s *Server) ResolvePath(_ context.Context, req *hubpb.ResolvePathRequest) (
 		ResolvedPath: resolved,
 		Allowed:      allowed,
 	}, nil
+}
+
+func (s *Server) AppendPackageLog(_ context.Context, req *hubpb.AppendPackageLogRequest) (*hubpb.AppendPackageLogResponse, error) {
+	if req == nil || strings.TrimSpace(req.AppId) == "" {
+		return nil, status.Error(codes.InvalidArgument, "app_id is required")
+	}
+
+	s.mu.RLock()
+	hook := s.packageLogHook
+	s.mu.RUnlock()
+	if hook == nil {
+		return &hubpb.AppendPackageLogResponse{Ok: false, Error: "package log hook is not configured"}, nil
+	}
+
+	if err := hook(req.AppId, req.Level, req.Message); err != nil {
+		return &hubpb.AppendPackageLogResponse{Ok: false, Error: err.Error()}, nil
+	}
+	return &hubpb.AppendPackageLogResponse{Ok: true}, nil
 }
 
 // DefaultSocketURL returns the platform socket endpoint for the hub.

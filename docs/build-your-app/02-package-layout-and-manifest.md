@@ -50,7 +50,7 @@ multi_instance: false
 
 ## Development vs production iframe (`development`)
 
-For local work, you can point the iframe at a dev server (Vite, etc.) **only when** Talos is run in developer mode (`TALOS_DEV_MODE=1`, e.g. `make dev`). Release builds (`wails build -tags=production`) **never** load these URLs or run `development.command`.
+For local work, you can point the iframe at a dev server (Vite, etc.) when **Development mode** is turned on for your app’s folder under `Packages/` in Launchpad Settings, or when you run a **non-production** Talos build with `TALOS_DEV_MODE=1` (e.g. `make dev`). **Release** binaries ignore `TALOS_DEV_MODE` and use only per-folder Settings toggles (default off = packaged `/talos-pkg/` assets).
 
 ```yaml
 web_entry: dist/index.html

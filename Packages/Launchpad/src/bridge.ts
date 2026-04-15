@@ -9,6 +9,7 @@ export const ALLOWED_SDK_METHODS = new Set([
   "resolvePath",
   "readScopedText",
   "writeScopedText",
+  "packageSdkLog",
   "packageLocalHttp",
   "sendMessage",
   "broadcast",

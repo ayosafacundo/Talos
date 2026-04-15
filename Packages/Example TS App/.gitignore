@@ -1,0 +1,5 @@
+node_modules/
+dist/
+/data/
+# Accidental tree if npm is run with repo-root-style --prefix paths while cwd is this folder.
+/Packages/

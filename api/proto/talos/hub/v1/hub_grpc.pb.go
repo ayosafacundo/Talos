@@ -25,6 +25,7 @@ const (
 	HubService_LoadState_FullMethodName         = "/talos.hub.v1.HubService/LoadState"
 	HubService_RequestPermission_FullMethodName = "/talos.hub.v1.HubService/RequestPermission"
 	HubService_ResolvePath_FullMethodName       = "/talos.hub.v1.HubService/ResolvePath"
+	HubService_AppendPackageLog_FullMethodName  = "/talos.hub.v1.HubService/AppendPackageLog"
 )
 
 // HubServiceClient is the client API for HubService service.
@@ -37,6 +38,7 @@ type HubServiceClient interface {
 	LoadState(ctx context.Context, in *LoadStateRequest, opts ...grpc.CallOption) (*LoadStateResponse, error)
 	RequestPermission(ctx context.Context, in *PermissionRequest, opts ...grpc.CallOption) (*PermissionResponse, error)
 	ResolvePath(ctx context.Context, in *ResolvePathRequest, opts ...grpc.CallOption) (*ResolvePathResponse, error)
+	AppendPackageLog(ctx context.Context, in *AppendPackageLogRequest, opts ...grpc.CallOption) (*AppendPackageLogResponse, error)
 }
 
 type hubServiceClient struct {
@@ -107,6 +109,16 @@ func (c *hubServiceClient) ResolvePath(ctx context.Context, in *ResolvePathReque
 	return out, nil
 }
 
+func (c *hubServiceClient) AppendPackageLog(ctx context.Context, in *AppendPackageLogRequest, opts ...grpc.CallOption) (*AppendPackageLogResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AppendPackageLogResponse)
+	err := c.cc.Invoke(ctx, HubService_AppendPackageLog_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HubServiceServer is the server API for HubService service.
 // All implementations must embed UnimplementedHubServiceServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type HubServiceServer interface {
 	LoadState(context.Context, *LoadStateRequest) (*LoadStateResponse, error)
 	RequestPermission(context.Context, *PermissionRequest) (*PermissionResponse, error)
 	ResolvePath(context.Context, *ResolvePathRequest) (*ResolvePathResponse, error)
+	AppendPackageLog(context.Context, *AppendPackageLogRequest) (*AppendPackageLogResponse, error)
 	mustEmbedUnimplementedHubServiceServer()
 }
 
@@ -144,6 +157,9 @@ func (UnimplementedHubServiceServer) RequestPermission(context.Context, *Permiss
 }
 func (UnimplementedHubServiceServer) ResolvePath(context.Context, *ResolvePathRequest) (*ResolvePathResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResolvePath not implemented")
+}
+func (UnimplementedHubServiceServer) AppendPackageLog(context.Context, *AppendPackageLogRequest) (*AppendPackageLogResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AppendPackageLog not implemented")
 }
 func (UnimplementedHubServiceServer) mustEmbedUnimplementedHubServiceServer() {}
 func (UnimplementedHubServiceServer) testEmbeddedByValue()                    {}
@@ -274,6 +290,24 @@ func _HubService_ResolvePath_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HubService_AppendPackageLog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppendPackageLogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServiceServer).AppendPackageLog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HubService_AppendPackageLog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServiceServer).AppendPackageLog(ctx, req.(*AppendPackageLogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HubService_ServiceDesc is the grpc.ServiceDesc for HubService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +338,10 @@ var HubService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResolvePath",
 			Handler:    _HubService_ResolvePath_Handler,
+		},
+		{
+			MethodName: "AppendPackageLog",
+			Handler:    _HubService_AppendPackageLog_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

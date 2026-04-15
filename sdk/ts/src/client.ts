@@ -45,10 +45,19 @@ export class TalosClient {
     await this.transport.writeScopedText(this.appId, relativePath, text)
   }
 
+  /** Writes to host `Temp/logs/packages/sdk/<app_id>.log` when Development mode is on for this package. */
+  async log(level: string, message: string): Promise<void> {
+    if (!this.transport.packageSdkLog) {
+      throw new Error("transport does not support package SDK logging")
+    }
+    await this.transport.packageSdkLog(this.appId, level, message)
+  }
+
   async packageLocalHttp(method: string, path: string, body = ""): Promise<{
     status: number
     content_type: string
     body: string
+    body_base64?: string
   }> {
     if (!this.transport.packageLocalHttp) {
       throw new Error("transport does not support package local HTTP")

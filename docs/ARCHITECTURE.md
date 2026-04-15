@@ -15,7 +15,7 @@ Talos is a local-first desktop host that discovers package manifests, launches p
 1. Host starts and initializes directories (`Packages`, `Temp`, logs, trust stores).
 2. Package discovery scans manifests and emits package events.
 3. Launchpad loads installed apps and renders package entries.
-4. User action starts package binary (if configured) and loads iframe `web_entry`, or a loopback dev URL when Developer mode (or `TALOS_DEV_MODE=1`) is active and the manifest defines `development`.
+4. User action starts package binary (if configured) and loads iframe `web_entry`, or a loopback dev URL when **Development mode** is enabled for that package’s `Packages/<dir>` folder (Settings), or when a **source** build runs with `TALOS_DEV_MODE=1`, and the manifest defines `development`.
 5. Tiny app bridge calls are routed by Launchpad to host APIs.
 
 ## Data plane (mini-SQL)

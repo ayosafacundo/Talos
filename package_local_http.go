@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 // Sentinel errors returned by PackageLocalHTTP for stable iframe handling.
@@ -169,11 +171,35 @@ func doPackageLocalHTTPOnce(client *http.Client, method, port, requestPath, body
 	if ct == "" {
 		ct = "application/octet-stream"
 	}
+	if isTextualPackageLocalContentType(ct) && utf8.Valid(bodyBytes) {
+		return &PackageLocalHTTPResponse{
+			Status:      resp.StatusCode,
+			ContentType: ct,
+			Body:        string(bodyBytes),
+		}, nil
+	}
 	return &PackageLocalHTTPResponse{
 		Status:      resp.StatusCode,
 		ContentType: ct,
-		Body:        string(bodyBytes),
+		BodyBase64:  base64.StdEncoding.EncodeToString(bodyBytes),
 	}, nil
+}
+
+func isTextualPackageLocalContentType(ct string) bool {
+	ct = strings.ToLower(strings.TrimSpace(ct))
+	if ct == "" {
+		return false
+	}
+	if strings.HasPrefix(ct, "text/") {
+		return true
+	}
+	if strings.HasPrefix(ct, "application/json") || strings.HasPrefix(ct, "application/problem+json") {
+		return true
+	}
+	if strings.Contains(ct, "xml") && (strings.HasPrefix(ct, "application/") || strings.HasPrefix(ct, "text/")) {
+		return true
+	}
+	return false
 }
 
 // PackageLocalHTTP forwards a request to a package binary's loopback HTTP server (port from cache or data/api-port.txt).

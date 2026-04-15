@@ -1,20 +1,24 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        try {
+          var q = new URLSearchParams(window.location.search);
+          var t = (q.get("_talos_theme") || "").trim();
+          var v = (q.get("_talos_theme_variant") || "").trim();
+          if (t) document.documentElement.dataset.talosTheme = t;
+          if (v) document.documentElement.dataset.talosThemeVariant = v;
+        } catch (_) {}
+      })();
+    </script>
     <title>Example Rust app</title>
+    <script type="module" src="./app.js"></script>
+    <link rel="stylesheet" href="./app.css">
   </head>
   <body>
-    <main>
-      <h1>Example Rust app</h1>
-      <p>This package runs a Rust sidecar using Talos SDK features:</p>
-      <ul>
-        <li>Load/Save state</li>
-        <li>Permission request</li>
-        <li>Scoped path resolution</li>
-        <li>Broadcast</li>
-      </ul>
-    </main>
+    <div id="root"></div>
   </body>
 </html>

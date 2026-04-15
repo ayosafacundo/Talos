@@ -5,5 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
 talos-sdk = { path = "../../sdk/rust" }

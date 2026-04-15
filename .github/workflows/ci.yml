@@ -28,10 +28,52 @@ jobs:
             Packages/Launchpad/package-lock.json
             Packages/Example TS App/package-lock.json
             sdk/ts/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
       - name: Build frontend assets first (required by go:embed)
         run: make frontend-build
-      - name: Validate default example apps
-        run: make example-go-app-build example-rust-app-build example-ts-app-build
+      - name: Validate bundled example apps (no root Makefile targets)
+        shell: bash
+        run: |
+          set -e
+          # Example Go App
+          if [ -d "Packages/Example Go App/src" ]; then
+            if [ -f "Packages/Example Go App/ui/package.json" ]; then
+              npm --prefix "Packages/Example Go App/ui" install
+              npm --prefix "Packages/Example Go App/ui" run build
+            fi
+            mkdir -p "Packages/Example Go App/bin"
+            rm -f "Packages/Example Go App/bin/example-go-app"
+            ( cd "Packages/Example Go App/src" && go build -trimpath -o ../bin/example-go-app . )
+            echo "OK: Example Go app"
+          else
+            echo "skip: Example Go App"
+          fi
+          # Example Rust App
+          if [ -f "Packages/Example Rust App/Cargo.toml" ]; then
+            if [ -f "Packages/Example Rust App/ui/package.json" ]; then
+              npm --prefix "Packages/Example Rust App/ui" install
+              npm --prefix "Packages/Example Rust App/ui" run build
+            fi
+            cargo build --release --manifest-path "Packages/Example Rust App/Cargo.toml"
+            mkdir -p "Packages/Example Rust App/bin"
+            rm -f "Packages/Example Rust App/bin/example-rust-app"
+            if [ -f "Packages/Example Rust App/target/release/example-rust-app.exe" ]; then
+              cp -f "Packages/Example Rust App/target/release/example-rust-app.exe" "Packages/Example Rust App/bin/example-rust-app"
+            else
+              cp -f "Packages/Example Rust App/target/release/example-rust-app" "Packages/Example Rust App/bin/example-rust-app"
+            fi
+            echo "OK: Example Rust app"
+          else
+            echo "skip: Example Rust App"
+          fi
+          # Example TS App
+          if [ -f "Packages/Example TS App/package.json" ]; then
+            npm --prefix "Packages/Example TS App" install
+            npm --prefix "Packages/Example TS App" run build
+            echo "OK: Example TS app"
+          else
+            echo "skip: Example TS App"
+          fi
       - name: Verify (Go tests, build, Launchpad + TS SDK tests, production gate)
         run: make verify-core
       - name: Hub gRPC integration tests

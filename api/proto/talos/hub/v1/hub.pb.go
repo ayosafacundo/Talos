@@ -713,6 +713,118 @@ func (x *ResolvePathResponse) GetError() string {
 	return ""
 }
 
+type AppendPackageLogRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AppId         string                 `protobuf:"bytes,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	Level         string                 `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AppendPackageLogRequest) Reset() {
+	*x = AppendPackageLogRequest{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppendPackageLogRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppendPackageLogRequest) ProtoMessage() {}
+
+func (x *AppendPackageLogRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppendPackageLogRequest.ProtoReflect.Descriptor instead.
+func (*AppendPackageLogRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AppendPackageLogRequest) GetAppId() string {
+	if x != nil {
+		return x.AppId
+	}
+	return ""
+}
+
+func (x *AppendPackageLogRequest) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *AppendPackageLogRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type AppendPackageLogResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AppendPackageLogResponse) Reset() {
+	*x = AppendPackageLogResponse{}
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppendPackageLogResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppendPackageLogResponse) ProtoMessage() {}
+
+func (x *AppendPackageLogResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_talos_hub_v1_hub_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppendPackageLogResponse.ProtoReflect.Descriptor instead.
+func (*AppendPackageLogResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *AppendPackageLogResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *AppendPackageLogResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_api_proto_talos_hub_v1_hub_proto protoreflect.FileDescriptor
 
 const file_api_proto_talos_hub_v1_hub_proto_rawDesc = "" +
@@ -759,7 +871,14 @@ const file_api_proto_talos_hub_v1_hub_proto_rawDesc = "" +
 	"\x13ResolvePathResponse\x12#\n" +
 	"\rresolved_path\x18\x01 \x01(\tR\fresolvedPath\x12\x18\n" +
 	"\aallowed\x18\x02 \x01(\bR\aallowed\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\xe4\x03\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"`\n" +
+	"\x17AppendPackageLogRequest\x12\x15\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\tR\x05level\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"@\n" +
+	"\x18AppendPackageLogResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error2\xc7\x04\n" +
 	"\n" +
 	"HubService\x12@\n" +
 	"\x05Route\x12\x1a.talos.hub.v1.RouteRequest\x1a\x1b.talos.hub.v1.RouteResponse\x12L\n" +
@@ -767,7 +886,8 @@ const file_api_proto_talos_hub_v1_hub_proto_rawDesc = "" +
 	"\tSaveState\x12\x1e.talos.hub.v1.SaveStateRequest\x1a\x1f.talos.hub.v1.SaveStateResponse\x12L\n" +
 	"\tLoadState\x12\x1e.talos.hub.v1.LoadStateRequest\x1a\x1f.talos.hub.v1.LoadStateResponse\x12V\n" +
 	"\x11RequestPermission\x12\x1f.talos.hub.v1.PermissionRequest\x1a .talos.hub.v1.PermissionResponse\x12R\n" +
-	"\vResolvePath\x12 .talos.hub.v1.ResolvePathRequest\x1a!.talos.hub.v1.ResolvePathResponseB$Z\"Talos/api/proto/talos/hub/v1;hubpbb\x06proto3"
+	"\vResolvePath\x12 .talos.hub.v1.ResolvePathRequest\x1a!.talos.hub.v1.ResolvePathResponse\x12a\n" +
+	"\x10AppendPackageLog\x12%.talos.hub.v1.AppendPackageLogRequest\x1a&.talos.hub.v1.AppendPackageLogResponseB$Z\"Talos/api/proto/talos/hub/v1;hubpbb\x06proto3"
 
 var (
 	file_api_proto_talos_hub_v1_hub_proto_rawDescOnce sync.Once
@@ -781,21 +901,23 @@ func file_api_proto_talos_hub_v1_hub_proto_rawDescGZIP() []byte {
 	return file_api_proto_talos_hub_v1_hub_proto_rawDescData
 }
 
-var file_api_proto_talos_hub_v1_hub_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_api_proto_talos_hub_v1_hub_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_api_proto_talos_hub_v1_hub_proto_goTypes = []any{
-	(*Message)(nil),             // 0: talos.hub.v1.Message
-	(*RouteRequest)(nil),        // 1: talos.hub.v1.RouteRequest
-	(*RouteResponse)(nil),       // 2: talos.hub.v1.RouteResponse
-	(*BroadcastRequest)(nil),    // 3: talos.hub.v1.BroadcastRequest
-	(*BroadcastResponse)(nil),   // 4: talos.hub.v1.BroadcastResponse
-	(*SaveStateRequest)(nil),    // 5: talos.hub.v1.SaveStateRequest
-	(*SaveStateResponse)(nil),   // 6: talos.hub.v1.SaveStateResponse
-	(*LoadStateRequest)(nil),    // 7: talos.hub.v1.LoadStateRequest
-	(*LoadStateResponse)(nil),   // 8: talos.hub.v1.LoadStateResponse
-	(*PermissionRequest)(nil),   // 9: talos.hub.v1.PermissionRequest
-	(*PermissionResponse)(nil),  // 10: talos.hub.v1.PermissionResponse
-	(*ResolvePathRequest)(nil),  // 11: talos.hub.v1.ResolvePathRequest
-	(*ResolvePathResponse)(nil), // 12: talos.hub.v1.ResolvePathResponse
+	(*Message)(nil),                  // 0: talos.hub.v1.Message
+	(*RouteRequest)(nil),             // 1: talos.hub.v1.RouteRequest
+	(*RouteResponse)(nil),            // 2: talos.hub.v1.RouteResponse
+	(*BroadcastRequest)(nil),         // 3: talos.hub.v1.BroadcastRequest
+	(*BroadcastResponse)(nil),        // 4: talos.hub.v1.BroadcastResponse
+	(*SaveStateRequest)(nil),         // 5: talos.hub.v1.SaveStateRequest
+	(*SaveStateResponse)(nil),        // 6: talos.hub.v1.SaveStateResponse
+	(*LoadStateRequest)(nil),         // 7: talos.hub.v1.LoadStateRequest
+	(*LoadStateResponse)(nil),        // 8: talos.hub.v1.LoadStateResponse
+	(*PermissionRequest)(nil),        // 9: talos.hub.v1.PermissionRequest
+	(*PermissionResponse)(nil),       // 10: talos.hub.v1.PermissionResponse
+	(*ResolvePathRequest)(nil),       // 11: talos.hub.v1.ResolvePathRequest
+	(*ResolvePathResponse)(nil),      // 12: talos.hub.v1.ResolvePathResponse
+	(*AppendPackageLogRequest)(nil),  // 13: talos.hub.v1.AppendPackageLogRequest
+	(*AppendPackageLogResponse)(nil), // 14: talos.hub.v1.AppendPackageLogResponse
 }
 var file_api_proto_talos_hub_v1_hub_proto_depIdxs = []int32{
 	0,  // 0: talos.hub.v1.RouteRequest.message:type_name -> talos.hub.v1.Message
@@ -807,14 +929,16 @@ var file_api_proto_talos_hub_v1_hub_proto_depIdxs = []int32{
 	7,  // 6: talos.hub.v1.HubService.LoadState:input_type -> talos.hub.v1.LoadStateRequest
 	9,  // 7: talos.hub.v1.HubService.RequestPermission:input_type -> talos.hub.v1.PermissionRequest
 	11, // 8: talos.hub.v1.HubService.ResolvePath:input_type -> talos.hub.v1.ResolvePathRequest
-	2,  // 9: talos.hub.v1.HubService.Route:output_type -> talos.hub.v1.RouteResponse
-	4,  // 10: talos.hub.v1.HubService.Broadcast:output_type -> talos.hub.v1.BroadcastResponse
-	6,  // 11: talos.hub.v1.HubService.SaveState:output_type -> talos.hub.v1.SaveStateResponse
-	8,  // 12: talos.hub.v1.HubService.LoadState:output_type -> talos.hub.v1.LoadStateResponse
-	10, // 13: talos.hub.v1.HubService.RequestPermission:output_type -> talos.hub.v1.PermissionResponse
-	12, // 14: talos.hub.v1.HubService.ResolvePath:output_type -> talos.hub.v1.ResolvePathResponse
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
+	13, // 9: talos.hub.v1.HubService.AppendPackageLog:input_type -> talos.hub.v1.AppendPackageLogRequest
+	2,  // 10: talos.hub.v1.HubService.Route:output_type -> talos.hub.v1.RouteResponse
+	4,  // 11: talos.hub.v1.HubService.Broadcast:output_type -> talos.hub.v1.BroadcastResponse
+	6,  // 12: talos.hub.v1.HubService.SaveState:output_type -> talos.hub.v1.SaveStateResponse
+	8,  // 13: talos.hub.v1.HubService.LoadState:output_type -> talos.hub.v1.LoadStateResponse
+	10, // 14: talos.hub.v1.HubService.RequestPermission:output_type -> talos.hub.v1.PermissionResponse
+	12, // 15: talos.hub.v1.HubService.ResolvePath:output_type -> talos.hub.v1.ResolvePathResponse
+	14, // 16: talos.hub.v1.HubService.AppendPackageLog:output_type -> talos.hub.v1.AppendPackageLogResponse
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -831,7 +955,7 @@ func file_api_proto_talos_hub_v1_hub_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_talos_hub_v1_hub_proto_rawDesc), len(file_api_proto_talos_hub_v1_hub_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

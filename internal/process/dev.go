@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -128,18 +129,24 @@ func (m *Manager) StartDev(ctx context.Context, pkg *packages.PackageInfo, argv 
 		}
 		return fmt.Errorf("process: dev start %q: %w", appID, err)
 	}
+	log.Printf("process: dev server started app_id=%s argv=%q cwd=%s", appID, argv, pkg.DirPath)
 	m.devMu.Lock()
 	m.devRunning[appID] = cmd
 	m.devMu.Unlock()
 
 	if sniff != nil && opts != nil && opts.OnResolvedURL != nil {
-		go m.watchResolvedDevURL(ctx, manifestDevURL, sniff, opts.OnResolvedURL)
+		go m.watchResolvedDevURL(ctx, appID, manifestDevURL, sniff, opts.OnResolvedURL)
 	}
 
 	go func() {
-		_ = cmd.Wait()
+		waitErr := cmd.Wait()
 		if logFile != nil {
 			_ = logFile.Close()
+		}
+		if waitErr != nil {
+			log.Printf("process: dev server exited app_id=%s err=%v", appID, waitErr)
+		} else {
+			log.Printf("process: dev server exited app_id=%s (exit 0)", appID)
 		}
 		m.devMu.Lock()
 		delete(m.devRunning, appID)
@@ -156,7 +163,7 @@ func devServerPortFromURL(raw string) string {
 	return u.Port()
 }
 
-func (m *Manager) watchResolvedDevURL(ctx context.Context, manifestDevURL string, sniff *ringBuffer, onResolved func(string)) {
+func (m *Manager) watchResolvedDevURL(ctx context.Context, appID, manifestDevURL string, sniff *ringBuffer, onResolved func(string)) {
 	if onResolved == nil {
 		return
 	}
@@ -184,6 +191,7 @@ func (m *Manager) watchResolvedDevURL(ctx context.Context, manifestDevURL string
 		case <-ctx.Done():
 			return
 		case <-deadline:
+			log.Printf("process: dev URL discovery timed out app_id=%s manifest_url=%q", appID, manifestDevURL)
 			return
 		case <-ticker.C:
 			if s := ParseDevServerBaseURL(sniff.String()); s != "" {

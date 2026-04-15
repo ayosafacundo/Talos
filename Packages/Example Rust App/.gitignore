@@ -1,0 +1,9 @@
+/ui/node_modules/
+/ui/package-lock.json
+/ui/dist/
+/ui/build/
+/target
+/Cargo.lock
+/data
+# Accidental tree if npm is run with repo-root-style --prefix paths while cwd is this folder.
+/Packages/

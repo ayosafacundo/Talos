@@ -30,10 +30,27 @@ export namespace main {
 	        this.trust_status = source["trust_status"];
 	    }
 	}
+	export class PackageDirDevRow {
+	    dir_name: string;
+	    has_manifest: boolean;
+	    dev_mode: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PackageDirDevRow(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dir_name = source["dir_name"];
+	        this.has_manifest = source["has_manifest"];
+	        this.dev_mode = source["dev_mode"];
+	    }
+	}
 	export class PackageLocalHTTPResponse {
 	    status: number;
 	    content_type: string;
 	    body: string;
+	    body_base64?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new PackageLocalHTTPResponse(source);
@@ -44,6 +61,7 @@ export namespace main {
 	        this.status = source["status"];
 	        this.content_type = source["content_type"];
 	        this.body = source["body"];
+	        this.body_base64 = source["body_base64"];
 	    }
 	}
 	export class PermissionAuditEntry {
@@ -142,6 +160,8 @@ export namespace main {
 	    theme: string;
 	    tab_colors: Record<string, string>;
 	    developer_mode?: boolean;
+	    dev_mode_by_dir?: Record<string, boolean>;
+	    dev_prefs_migrated?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UserPrefs(source);
@@ -152,6 +172,8 @@ export namespace main {
 	        this.theme = source["theme"];
 	        this.tab_colors = source["tab_colors"];
 	        this.developer_mode = source["developer_mode"];
+	        this.dev_mode_by_dir = source["dev_mode_by_dir"];
+	        this.dev_prefs_migrated = source["dev_prefs_migrated"];
 	    }
 	}
 

@@ -3,7 +3,14 @@ name: Example Rust app
 version: "0.1.0"
 binary: bin/example-rust-app
 web_entry: dist/index.html
+icon: dist/icon.webp
 permissions:
   - fs:external
   - net:internet
 multi_instance: false
+development:
+  command: ["npm", "run", "dev"]
+  url: "http://127.0.0.1:5176"
+  allowed_origins:
+    - "http://127.0.0.1:5176"
+    - "http://localhost:5176"

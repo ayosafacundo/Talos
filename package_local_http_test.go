@@ -78,6 +78,46 @@ func testPackageLayout(t *testing.T) (root string, appID string, pkg *packages.P
 	return root, appID, pkg
 }
 
+func TestPackageLocalHTTP_BinaryResponseUsesBase64(t *testing.T) {
+	t.Parallel()
+	root, appID, pkgInfo := testPackageLayout(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write([]byte{0, 255, 0, 10})
+	}))
+	t.Cleanup(srv.Close)
+
+	addr := srv.Listener.Addr().(*net.TCPAddr)
+	portFile := filepath.Join(root, "Packages", "TestPkg", "data", "api-port.txt")
+	if err := os.WriteFile(portFile, []byte(fmt.Sprintf("%d", addr.Port)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	app := NewApp()
+	app.rootDir = root
+	app.packagesDir = filepath.Join(root, "Packages")
+	app.permissions = security.NewPermissions(func(string, string, string) (bool, string) { return true, "" })
+	app.scopeManager = security.NewScopeManager(app.packagesDir, app.permissions)
+	app.mu.Lock()
+	app.packages[appID] = pkgInfo
+	app.mu.Unlock()
+
+	resp, err := app.PackageLocalHTTP(appID, "GET", "/api/bin", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Status != 200 {
+		t.Fatalf("status=%d", resp.Status)
+	}
+	if resp.BodyBase64 == "" {
+		t.Fatal("expected body_base64 for binary payload")
+	}
+	if resp.Body != "" {
+		t.Fatalf("expected empty body when using base64, got %q", resp.Body)
+	}
+}
+
 func TestPackageLocalHTTP_Success(t *testing.T) {
 	t.Parallel()
 	root, appID, pkgInfo := testPackageLayout(t)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -105,9 +106,14 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 	m.mu.Unlock()
 
 	go func() {
-		_ = cmd.Wait()
+		waitErr := cmd.Wait()
 		if logFile != nil {
 			_ = logFile.Close()
+		}
+		if waitErr != nil {
+			log.Printf("process: package binary exited app_id=%s err=%v", appID, waitErr)
+		} else {
+			log.Printf("process: package binary exited app_id=%s (exit 0)", appID)
 		}
 		m.mu.Lock()
 		delete(m.running, appID)
@@ -115,6 +121,14 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 	}()
 
 	return nil
+}
+
+// IsRunning reports whether a package binary process is currently tracked as running.
+func (m *Manager) IsRunning(appID string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	_, ok := m.running[appID]
+	return ok
 }
 
 // Stop stops a running app by id. No-op if not running.

@@ -58,17 +58,10 @@ Main commands:
 
 - `make proto` - regenerate protobuf and gRPC stubs
 - `make verify` - run tests + go build + frontend build
-- `make example-go-app-build` - build Example Go app binary
-- `make example-rust-app-build` - build Example Rust app binary
-- `make example-ts-app-build` - compile Example TypeScript app assets
-- `make dev` - prepare proto/demos then run `wails dev`
-- `make app-build` - full build pipeline ending in `wails build`
+- `make dev` - proto + Launchpad frontend, then `TALOS_DEV_MODE=1 wails dev`
+- `make app-build` - proto + verify + `wails build -tags=production` (Talos + Launchpad only)
 
-Useful clean commands:
-
-- `make example-go-app-clean`
-- `make example-rust-app-clean`
-- `make example-ts-app-clean`
+Bundled example apps under `Packages/` are built manually; see `docs/DEVELOPMENT.md`.
 
 ## 5) Host Runtime Architecture
 
@@ -163,9 +156,9 @@ make app-build
 This runs:
 
 1. proto generation
-2. demo build steps
+2. Launchpad frontend build
 3. verify steps
-4. `wails build`
+4. `wails build -tags=production`
 
 Packaging output name is configured in `wails.json` as `Talos`.
 
@@ -205,7 +198,7 @@ make verify
   - inspect `Temp/permissions.json`
   - re-trigger request through UI if needed
 - TS iframe example not updating:
-  - run `make example-ts-app-build` and restart app
+  - rebuild the package (`npm --prefix "Packages/Example TS App" run build`) and restart Talos
 
 ## 11) Current Status Snapshot
 

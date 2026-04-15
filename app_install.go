@@ -26,9 +26,10 @@ type RemotePackageDescriptor struct {
 	InstallURL string `json:"install_url,omitempty"`
 }
 
-// DevelopmentFeaturesEnabled is true when manifest development.* may be honored (Settings and/or TALOS_DEV_MODE).
+// DevelopmentFeaturesEnabled gates optional host UI surfaces that are safe for general users.
+// Package install from zip/URL is always available; manifest dev commands remain gated by per-directory Settings.
 func (a *App) DevelopmentFeaturesEnabled() bool {
-	return a.effectiveDevelopmentEnabled()
+	return true
 }
 
 // InstallPackageFromZipPath installs a local .zip into Packages/ after validation.

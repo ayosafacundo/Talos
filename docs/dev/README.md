@@ -32,10 +32,9 @@ Common targets:
 
 - `make test` - run Go tests only.
 - `make build` - compile Go packages only.
-- `make example-go-app-build` - rebuild Example Go app package binary.
-- `make example-rust-app-build` - rebuild Example Rust app package binary.
-- `make example-ts-app-build` - rebuild Example TypeScript app bundle.
-- `make app-build` - full build (proto + demos + verify + wails build).
+- `make app-build` - Talos + Launchpad only (proto + verify + `wails build -tags=production`).
+
+Other folders under `Packages/` are built with your own tooling; see `docs/DEVELOPMENT.md` for optional example commands.
 
 ## Runtime model in one paragraph
 

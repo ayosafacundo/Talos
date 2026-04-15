@@ -85,15 +85,14 @@ If you want to build internal apps for Talos:
 4. Use SDK docs: `docs/SDK_GUIDE.md`
 5. Use component/theming docs: `docs/ASSET_DRIVEN_THEMES.md` and `docs/build-your-app/07-talos-ui-and-themes.md`
 
-Quick command set:
+Quick command set (Talos + Launchpad only; build each package under `Packages/` yourself — see `docs/DEVELOPMENT.md`):
 
 ```bash
 make help
 make proto
 make verify
-make example-go-app-build
-make example-rust-app-build
-make example-ts-app-build
+make dev
+make app-build
 ```
 
 Default example apps are package-local under:

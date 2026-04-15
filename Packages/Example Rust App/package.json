@@ -1,0 +1,9 @@
+{
+  "name": "talos-example-rust-app",
+  "private": true,
+  "description": "Delegates to ui/; host dev server cwd is this package root.",
+  "scripts": {
+    "dev": "npm --prefix ui run dev",
+    "build": "npm --prefix ui run build"
+  }
+}

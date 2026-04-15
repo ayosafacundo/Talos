@@ -85,6 +85,7 @@ describe("isAllowedMethod", () => {
     expect(isAllowedMethod("not_a_method")).toBe(false);
     expect(ALLOWED_SDK_METHODS.has("broadcast")).toBe(true);
     expect(ALLOWED_SDK_METHODS.has("packageLocalHttp")).toBe(true);
+    expect(ALLOWED_SDK_METHODS.has("packageSdkLog")).toBe(true);
   });
 });
 

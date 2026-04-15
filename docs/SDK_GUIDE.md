@@ -43,6 +43,7 @@ Proto: `api/proto/talos/hub/v1/hub.proto`
 - `LoadState` - load previously stored state.
 - `RequestPermission` - ask host for a scope grant.
 - `ResolvePath` - resolve and validate scoped filesystem paths.
+- `AppendPackageLog` - append one SDK log line for an app (host writes only when **Development mode** is on for that package; otherwise no-op, still returns OK).
 
 ## Go SDK API (Current)
 
@@ -57,6 +58,13 @@ Proto: `api/proto/talos/hub/v1/hub.proto`
 - `ResolvePath(ctx, appID, relativePath)`
 - `WriteScopedFile(ctx, appID, relativePath, data)`
 - `ReadScopedFile(ctx, appID, relativePath)`
+- `Log(ctx, appID, level, message)` - forwards to `AppendPackageLog`; lines go to `Temp/logs/packages/sdk/<app_id>.log` when dev mode is enabled for that package.
+
+## SDK logging (Development mode)
+
+- **Go:** `client.Log(ctx, appID, "INFO", "message")` via hub `AppendPackageLog`.
+- **TypeScript (iframe):** `talosClient.log("WARN", "message")` (bridge method `packageSdkLog`).
+- Host writes under **`Temp/logs/packages/sdk/<app_id>.log`** only when that package’s folder has Development mode on in Settings (or `TALOS_DEV_MODE=1` in non-production builds). Otherwise the call succeeds and nothing is written.
 
 ## Filesystem Scoping Rules
 
@@ -133,6 +141,7 @@ Implemented bridge request methods:
 - `setContextMenuOptions`
 - `clearContextMenuOptions`
 - `openContextMenu`
+- `packageSdkLog` (params: `level`, `message`)
 
 When Launchpad users select a custom app menu item, the iframe receives:
 

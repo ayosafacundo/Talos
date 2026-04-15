@@ -3,6 +3,7 @@ name: Example Go app
 version: "0.1.0"
 binary: bin/example-go-app
 web_entry: dist/index.html
+icon: dist/icon.webp
 permissions:
   - fs:external
   - net:internet

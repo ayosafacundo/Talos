@@ -2,6 +2,7 @@ id: app.example.ts
 name: Example TypeScript app
 version: "0.1.0"
 web_entry: dist/index.html
+icon: dist/icon.webp
 permissions:
   - fs:external
 multi_instance: false

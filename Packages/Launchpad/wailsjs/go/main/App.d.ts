@@ -45,6 +45,8 @@ export function InstallPackageFromURL(arg1:string):Promise<string>;
 
 export function InstallPackageFromZipPath(arg1:string):Promise<string>;
 
+export function ListPackageDirectoriesDevSettings():Promise<Array<main.PackageDirDevRow>>;
+
 export function ListPackages():Promise<Record<string, packages.PackageInfo>>;
 
 export function ListPermissionAudit(arg1:number):Promise<Array<main.PermissionAuditEntry>>;
@@ -64,6 +66,8 @@ export function LoadAppStateText(arg1:string):Promise<string>;
 export function LoadUserPrefs():Promise<main.UserPrefs>;
 
 export function PackageLocalHTTP(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.PackageLocalHTTPResponse>;
+
+export function PackageSdkLog(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ParanoidPackageTrust():Promise<boolean>;
 
@@ -94,6 +98,8 @@ export function SaveAppStateText(arg1:string,arg2:string):Promise<void>;
 export function SaveUserPrefs(arg1:main.UserPrefs):Promise<void>;
 
 export function SetDeveloperMode(arg1:boolean):Promise<void>;
+
+export function SetPackageDirectoryDevMode(arg1:string,arg2:boolean):Promise<void>;
 
 export function StartPackage(arg1:string):Promise<void>;
 
