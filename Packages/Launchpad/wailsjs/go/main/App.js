@@ -26,6 +26,10 @@ export function DevelopmentFeaturesEnabled() {
   return window['go']['main']['App']['DevelopmentFeaturesEnabled']();
 }
 
+export function GetDeveloperMode() {
+  return window['go']['main']['App']['GetDeveloperMode']();
+}
+
 export function GetInstalledApps() {
   return window['go']['main']['App']['GetInstalledApps']();
 }
@@ -118,6 +122,10 @@ export function LoadUserPrefs() {
   return window['go']['main']['App']['LoadUserPrefs']();
 }
 
+export function PackageLocalHTTP(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['PackageLocalHTTP'](arg1, arg2, arg3, arg4);
+}
+
 export function ParanoidPackageTrust() {
   return window['go']['main']['App']['ParanoidPackageTrust']();
 }
@@ -172,6 +180,10 @@ export function SaveAppStateText(arg1, arg2) {
 
 export function SaveUserPrefs(arg1) {
   return window['go']['main']['App']['SaveUserPrefs'](arg1);
+}
+
+export function SetDeveloperMode(arg1) {
+  return window['go']['main']['App']['SetDeveloperMode'](arg1);
 }
 
 export function StartPackage(arg1) {

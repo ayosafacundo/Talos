@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"Talos/internal/buildmode"
 	"Talos/internal/packageinstall"
 	"Talos/internal/packages/repository"
 
@@ -27,9 +26,9 @@ type RemotePackageDescriptor struct {
 	InstallURL string `json:"install_url,omitempty"`
 }
 
-// DevelopmentFeaturesEnabled is true when manifest development.* may be honored (dev shell only).
+// DevelopmentFeaturesEnabled is true when manifest development.* may be honored (Settings and/or TALOS_DEV_MODE).
 func (a *App) DevelopmentFeaturesEnabled() bool {
-	return buildmode.DevelopmentAllowed()
+	return a.effectiveDevelopmentEnabled()
 }
 
 // InstallPackageFromZipPath installs a local .zip into Packages/ after validation.

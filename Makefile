@@ -3,7 +3,7 @@ SHELL := /bin/bash
 GO_BIN := $(shell go env GOPATH)/bin
 PROTO_FILE := api/proto/talos/hub/v1/hub.proto
 
-.PHONY: help install-tools deps proto test build verify verify-core production-gate launchpad-test sdk-ts-test example-go-app-build example-go-app-clean example-rust-app-build example-rust-app-clean example-ts-app-build example-ts-app-clean app-build dev talos-sync-css integration-hub
+.PHONY: help install-tools deps proto test build verify verify-core production-gate launchpad-test sdk-ts-test example-go-app-build example-go-app-clean example-rust-app-build example-rust-app-clean example-ts-app-build example-ts-app-clean osrs-ge-ui-build osrs-ge-app-build osrs-ge-app-clean app-build dev talos-sync-css integration-hub
 
 help:
 	@echo "Available targets:"
@@ -13,7 +13,7 @@ help:
 	@echo "  test           Run Go tests"
 	@echo "  build          Build Go packages"
 	@echo "  verify         Run validation checks; if they fail, try frontend-build then fail"
-	@echo "  production-gate  go test internal/buildmode with -tags=production"
+	@echo "  production-gate  go test internal/buildmode (CI sanity for buildmode package)"
 	@echo "  launchpad-test Run Launchpad (Vitest) unit tests"
 	@echo "  sdk-ts-test    Run Vitest for sdk/ts"
 	@echo "  integration-hub Run hub gRPC integration tests"
@@ -24,13 +24,16 @@ help:
 	@echo "  example-rust-app-clean Remove Example Rust app binary"
 	@echo "  example-ts-app-build Build Example TypeScript app web assets"
 	@echo "  example-ts-app-clean Remove Example TypeScript app generated assets"
+	@echo "  osrs-ge-ui-build   Build OSRS GE Vite bundle only (updates dist/ for /talos-pkg/)"
+	@echo "  osrs-ge-app-build  Build OSRS GE mini-app (Go binary + Vite UI)"
+	@echo "  osrs-ge-app-clean  Remove OSRS GE app binary"
 	@echo "  app-build      Build full Talos app and demos (wails build -tags=production)"
-	@echo "  dev            Run Talos in development mode (proto + frontend-build + wails dev)"
+	@echo "  dev            Run Talos in development mode (proto + frontend-build + OSRS GE Go binary + UI + wails dev)"
 	@echo "  talos-sync-css Copy Talos UI CSS from Launchpad to sdk/talos/"
 	@echo ""
 	@echo "Build modes:"
-	@echo "  Release: app-build uses -tags=production so development manifest URLs/commands are disabled."
-	@echo "  Dev:     run 'make dev' (sets TALOS_DEV_MODE=1) or 'TALOS_DEV_MODE=1 wails dev' for dev iframe URLs."
+	@echo "  Release: make app-build produces one binary; use Launchpad Settings → Developer to enable manifest dev commands, or TALOS_DEV_MODE=1."
+	@echo "  Dev:     make dev (frontend + wails dev); optional TALOS_DEV_MODE=1 matches production dev behavior."
 
 install-tools:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -84,6 +87,10 @@ talos-sync-css:
 	cp -f Packages/Launchpad/src/talos/tokens.css Packages/Launchpad/src/talos/legacy-alias.css Packages/Launchpad/src/talos/utilities.css sdk/talos/
 
 app-build: proto frontend-build verify
+	make example-go-app-build
+	make example-rust-app-build
+	make example-ts-app-build
+	make osrs-ge-app-build
 	wails build -tags=production
 
 launchpad-test:
@@ -98,28 +105,39 @@ integration-hub:
 EXAMPLE_GO_SRC := Packages/Example Go App/src
 EXAMPLE_RUST_SRC := Packages/Example Rust App
 EXAMPLE_TS_SRC := Packages/Example TS App
+OSRS_GE_SRC := Packages/OSRS-GE-App/src
+OSRS_GE_UI := Packages/OSRS-GE-App/ui
 
 example-go-app-build:
 	@if [ -d "$(EXAMPLE_GO_SRC)" ]; then \
-	  ( cd "$(EXAMPLE_GO_SRC)" && go build -trimpath . ) && \
+	  mkdir -p "Packages/Example Go App/bin" && \
+	  rm -f "Packages/Example Go App/bin/example-go-app" && \
+	  ( cd "$(EXAMPLE_GO_SRC)" && go build -trimpath -o ../bin/example-go-app . ) && \
 	  echo "Validated Example Go app source build"; \
 	else \
 	  echo "make: $(EXAMPLE_GO_SRC) not in tree — skip example-go-app-build"; \
 	fi
 
 example-go-app-clean:
-	@echo "No generated Go artifacts to clean (wrapper-based runtime)."
+	rm -f "Packages/Example Go App/bin/example-go-app"
 
 example-rust-app-build:
 	@if [ -f "$(EXAMPLE_RUST_SRC)/Cargo.toml" ]; then \
 	  cargo build --release --manifest-path "$(EXAMPLE_RUST_SRC)/Cargo.toml" && \
+	  mkdir -p "$(EXAMPLE_RUST_SRC)/bin" && \
+	  rm -f "$(EXAMPLE_RUST_SRC)/bin/example-rust-app" && \
+	  if [ -f "$(EXAMPLE_RUST_SRC)/target/release/example-rust-app.exe" ]; then \
+	    cp -f "$(EXAMPLE_RUST_SRC)/target/release/example-rust-app.exe" "$(EXAMPLE_RUST_SRC)/bin/example-rust-app"; \
+	  else \
+	    cp -f "$(EXAMPLE_RUST_SRC)/target/release/example-rust-app" "$(EXAMPLE_RUST_SRC)/bin/example-rust-app"; \
+	  fi && \
 	  echo "Validated Example Rust app source build"; \
 	else \
 	  echo "make: $(EXAMPLE_RUST_SRC) not in tree — skip example-rust-app-build"; \
 	fi
 
 example-rust-app-clean:
-	@echo "No generated Rust artifacts to clean (wrapper-based runtime)."
+	rm -f "Packages/Example Rust App/bin/example-rust-app"
 
 example-ts-app-build:
 	@if [ -f "$(EXAMPLE_TS_SRC)/package.json" ]; then \
@@ -132,7 +150,31 @@ example-ts-app-build:
 example-ts-app-clean:
 	rm -f "Packages/Example TS App/dist/index.html" "Packages/Example TS App/dist/app.js" "Packages/Example TS App/dist/app.css"
 
-dev: proto frontend-build
+# Vite production bundle only (updates Packages/OSRS-GE-App/dist for /talos-pkg/ iframe fallback).
+osrs-ge-ui-build:
+	@if [ -f "$(OSRS_GE_UI)/package.json" ]; then \
+	  npm --prefix "$(OSRS_GE_UI)" install && npm --prefix "$(OSRS_GE_UI)" run build && \
+	  echo "Built OSRS GE UI dist for Talos iframe fallback"; \
+	else \
+	  echo "make: $(OSRS_GE_UI) not in tree — skip osrs-ge-ui-build"; \
+	fi
+
+osrs-ge-app-build:
+	@if [ -d "$(OSRS_GE_SRC)" ]; then \
+	  mkdir -p "Packages/OSRS-GE-App/bin" && \
+	  rm -f "Packages/OSRS-GE-App/bin/osrs-ge-app" && \
+	  ( cd "$(OSRS_GE_SRC)" && go build -trimpath -o ../bin/osrs-ge-app . ) && \
+	  echo "Built OSRS GE Go binary"; \
+	else \
+	  echo "make: $(OSRS_GE_SRC) not in tree — skip osrs-ge-app-build"; \
+	fi
+	@$(MAKE) osrs-ge-ui-build
+
+osrs-ge-app-clean:
+	rm -f "Packages/OSRS-GE-App/bin/osrs-ge-app"
+	rm -f "Packages/OSRS-GE-App/dist/index.html" "Packages/OSRS-GE-App/dist/app.js" "Packages/OSRS-GE-App/dist/app.css"
+
+dev: proto frontend-build osrs-ge-app-build
 	rm -rf Temp/logs
 	mkdir -p Temp/logs/packages
 	TALOS_DEV_MODE=1 wails dev

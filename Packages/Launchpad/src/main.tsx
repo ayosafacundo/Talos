@@ -6,8 +6,13 @@ import './talos/utilities.css'
 import './index.css'
 import App from './App'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+const rootEl = document.getElementById('root')!
+createRoot(rootEl).render(
+  import.meta.env.DEV ? (
+    <StrictMode>
+      <App />
+    </StrictMode>
+  ) : (
     <App />
-  </StrictMode>,
+  ),
 )

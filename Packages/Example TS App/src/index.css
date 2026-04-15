@@ -13,10 +13,4 @@ body {
   color: var(--talos-color-text-primary);
 }
 
-.app-root {
-  visibility: hidden;
-}
-
-:root[data-talos-theme] .app-root {
-  visibility: visible;
-}
+/* Theme markers: inline script in index.html + SDK (avoid visibility FOUC gate under Wails/WebKit). */

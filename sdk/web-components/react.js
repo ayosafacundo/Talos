@@ -23,22 +23,37 @@ function el(tag, props, ...children) {
   return createElement(tag, props, ...children)
 }
 
+/**
+ * React 19 + WebKit: assigning a style object to custom elements can throw
+ * "Attempted to assign to readonly property" on CSSStyleDeclaration. Host styles on a wrapper div.
+ */
+function hostWithOptionalStyleWrapper(tag, props) {
+  if (!props) {
+    return el(tag, null)
+  }
+  const { style, children, ...rest } = props
+  if (style != null && style !== undefined) {
+    return el("div", { style }, el(tag, rest, children))
+  }
+  return el(tag, rest, children)
+}
+
 export function TalosPanel(props) {
-  return el("talos-panel", props, props?.children)
+  return hostWithOptionalStyleWrapper("talos-panel", props)
 }
 
 export function TalosCard(props) {
-  return el("talos-card", props, props?.children)
+  return hostWithOptionalStyleWrapper("talos-card", props)
 }
 
 export function TalosButton(props) {
-  return el("talos-button", props, props?.children)
+  return hostWithOptionalStyleWrapper("talos-button", props)
 }
 
 export function TalosAlert(props) {
-  return el("talos-alert", props, props?.children)
+  return hostWithOptionalStyleWrapper("talos-alert", props)
 }
 
 export function TalosListRow(props) {
-  return el("talos-list-row", props, props?.children)
+  return hostWithOptionalStyleWrapper("talos-list-row", props)
 }

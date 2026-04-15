@@ -18,7 +18,7 @@ Talos package manifests are YAML files at `Packages/<PackageName>/manifest.yaml`
 - `permissions` (array[string]): requested capabilities (host policies still gate grant/deny).
 - `multi_instance` (bool): allow multiple UI instances.
 
-## `development` block (dev mode only)
+## `development` block (optional; requires Developer mode or `TALOS_DEV_MODE`)
 
 ```yaml
 development:
@@ -37,8 +37,15 @@ development:
 
 - `development.url` must be `http`/`https` on loopback (`localhost`, `127.0.0.1`, `::1`, or `127.*`).
 - `development.url` is optional when `development.command` is present; Talos can discover the runtime URL from logs/probing.
-- Release builds ignore the `development` block.
+- The host honors `development` when **Developer mode** is enabled in Launchpad Settings, or when **`TALOS_DEV_MODE=1`** is set (automation). Otherwise only packaged `web_entry` URLs (`/talos-pkg/...`) are used.
 - Host exports `TALOS_DEV_SERVER_PORT` to `development.command`.
+
+## Host environment for package `binary` processes
+
+When a package declares `binary`, the host starts it with environment including:
+
+- `TALOS_APP_ID`, `TALOS_APP_DATA_DIR`, `TALOS_HUB_SOCKET`
+- `TALOS_SQL_DSN` — SQLite connection string for this app’s isolated database file under the Talos data directory (per-app file; host-provisioned).
 
 ## Path and validation rules
 

@@ -5,26 +5,111 @@
  * See docs/dev/iframe-bridge.md for origin and allowlist rules shared with the host.
  */
 
+import { talosBridgeDebugLog } from "./bridge-debug"
 import type { ContextMenuOption, PermissionResult, TalosTransport } from "./types";
 
 export const BRIDGE_CHANNEL = "talos:sdk:v1" as const;
 
-/** Prefer parent origin when the runtime exposes it; fall back to "*" (e.g. file://). */
-export function parentPostMessageTarget(): string {
+let warnedBridgeTokenWithoutShellOrigin = false
+
+function normalizeOrigin(raw: string): string {
+  const s = String(raw || "").trim()
+  if (!s) return ""
   try {
-    const loc = window.location as unknown as { ancestorOrigins?: DOMStringList }
-    const ao = loc.ancestorOrigins
-    if (ao && ao.length > 0) {
-      const o = ao.item(ao.length - 1)
-      if (o && o !== "null") return o
-    }
+    return new URL(s).origin
   } catch {
-    /* ignore */
+    return s.replace(/\/$/, "")
+  }
+}
+
+/**
+ * Computes targetOrigin for iframe → parent postMessage.
+ * MDN: ancestorOrigins is ordered parent → root. Some engines append the iframe origin; using
+ * `item(length - 1)` picked the wrong entry under Wails (e.g. http://127.0.0.1:5175) so the
+ * shell (wails://…) rejected the message.
+ */
+export function computeParentPostMessageTarget(selfOrigin: string, ancestorOrigins: readonly string[]): string {
+  const selfO = normalizeOrigin(selfOrigin)
+  // Empty iframe origin (opaque / exotic contexts): ancestor scan can pick the wrong entry.
+  if (!selfO) {
+    return "*"
+  }
+  for (const o of ancestorOrigins) {
+    if (!o || o === "null") continue
+    if (normalizeOrigin(o) !== selfO) return o
   }
   return "*"
 }
 
-function bridgeTokenFromLocation(): string {
+/** Parse `_talos_shell_origin` from a query string (used in tests). */
+export function parseShellOriginFromSearch(search: string): string {
+  try {
+    const q = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search)
+    return String(q.get("_talos_shell_origin") || "").trim()
+  } catch {
+    return ""
+  }
+}
+
+function shellOriginFromQuery(): string {
+  try {
+    return parseShellOriginFromSearch(window.location.search)
+  } catch {
+    return ""
+  }
+}
+
+/** Prefer the real parent origin; fall back to "*" (e.g. file:// or empty ancestorOrigins). */
+export function parentPostMessageTarget(): string {
+  const fromShell = shellOriginFromQuery()
+  const bt = bridgeTokenFromLocation()
+  if (!fromShell && bt.length >= 16 && !warnedBridgeTokenWithoutShellOrigin) {
+    warnedBridgeTokenWithoutShellOrigin = true
+    try {
+      console.warn(
+        "[@talos/sdk] iframe bridge: _talos_bt is set but _talos_shell_origin is missing. " +
+          "Host should inject both (see Talos Launchpad withBridgeToken). Falling back to ancestorOrigins or *.",
+      )
+    } catch {
+      /* ignore */
+    }
+  }
+  if (fromShell) {
+    talosBridgeDebugLog("iframe_to_parent_target", {
+      target: fromShell,
+      via: "_talos_shell_origin",
+    })
+    return fromShell
+  }
+  let selfOrigin = ""
+  try {
+    selfOrigin = window.location.origin
+  } catch {
+    return "*"
+  }
+  const list: string[] = []
+  try {
+    const ao = (window.location as unknown as { ancestorOrigins?: DOMStringList }).ancestorOrigins
+    if (ao && ao.length > 0) {
+      for (let i = 0; i < ao.length; i++) {
+        const o = ao.item(i)
+        if (o) list.push(o)
+      }
+    }
+  } catch {
+    return "*"
+  }
+  const target = computeParentPostMessageTarget(selfOrigin, list)
+  talosBridgeDebugLog("iframe_to_parent_target", {
+    target,
+    selfOrigin,
+    ancestorOrigins: list,
+    hasShellOriginQuery: Boolean(fromShell),
+  })
+  return target
+}
+
+export function bridgeTokenFromLocation(): string {
   try {
     const q = new URLSearchParams(window.location.search);
     return String(q.get("_talos_bt") || "").trim();
@@ -89,7 +174,9 @@ export class IframeBridgeTransport implements TalosTransport {
     }
     return new Promise((resolve, reject) => {
       this.pending.set(requestId, { resolve, reject })
-      window.parent.postMessage(req, parentPostMessageTarget())
+      const pmTarget = parentPostMessageTarget()
+      talosBridgeDebugLog("iframe_to_parent_postMessage", { method, targetOrigin: pmTarget })
+      window.parent.postMessage(req, pmTarget)
       if (timeoutMs > 0) {
         window.setTimeout(() => {
           if (!this.pending.has(requestId)) return
@@ -160,6 +247,26 @@ export class IframeBridgeTransport implements TalosTransport {
   async writeScopedText(appId: string, relativePath: string, text: string): Promise<void> {
     void appId
     await this.call("writeScopedText", { relative_path: relativePath, text })
+  }
+
+  /** Proxies GET/POST to the app's loopback sidecar via the host (path must start with /api/). */
+  async packageLocalHttp(
+    appId: string,
+    method: string,
+    path: string,
+    body: string,
+  ): Promise<{ status: number; content_type: string; body: string }> {
+    void appId
+    const result = (await this.call("packageLocalHttp", {
+      method: String(method || "GET").toUpperCase(),
+      path: String(path || ""),
+      body: String(body || ""),
+    })) as { status?: number; content_type?: string; body?: string }
+    return {
+      status: Number(result.status ?? 0),
+      content_type: String(result.content_type || ""),
+      body: String(result.body ?? ""),
+    }
   }
 
   async setContextMenuOptions(appId: string, options: ContextMenuOption[]): Promise<void> {

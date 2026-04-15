@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +22,7 @@ import (
 	hubpb "Talos/api/proto/talos/hub/v1"
 	"Talos/internal/buildmode"
 	"Talos/internal/hub"
+	"Talos/internal/minisql"
 	"Talos/internal/packageinstall"
 	"Talos/internal/packages"
 	"Talos/internal/process"
@@ -55,10 +58,27 @@ type App struct {
 	devResolvedMu  sync.RWMutex
 	devResolvedURL map[string]string // effective dev iframe base URL when discovered (overrides manifest until cleared)
 
-	logMu    sync.Mutex
-	auditMu  sync.Mutex
+	// devReachCache: short-lived probe results so GetInstalledApps does not hammer loopback; short TTL on
+	// "packaged" so a late-started Vite is detected within a few seconds.
+	devReachMu    sync.Mutex
+	devReachCache map[string]devReachOutcome
+
+	logMu   sync.Mutex
+	auditMu sync.Mutex
 
 	permissionAuditPath string
+
+	devMu              sync.RWMutex
+	prefsDeveloperMode bool
+	sqlStore           *minisql.Store
+
+	// sidecarLoopbackPort caches last successful loopback port per app (invalidated on dial failure / stop).
+	sidecarLoopbackMu   sync.RWMutex
+	sidecarLoopbackPort map[string]string
+	// packageLocalHTTPTransport is only set by tests to stub RoundTrip behavior; production leaves it nil.
+	packageLocalHTTPTransport http.RoundTripper
+	// testSidecarRunningIDs, when non-nil, overrides sidecarProcessRunning (tests only).
+	testSidecarRunningIDs []string
 }
 
 type ThemeInfo struct {
@@ -67,8 +87,57 @@ type ThemeInfo struct {
 }
 
 type UserPrefs struct {
-	Theme     string            `json:"theme"`
-	TabColors map[string]string `json:"tab_colors"`
+	Theme         string            `json:"theme"`
+	TabColors     map[string]string `json:"tab_colors"`
+	DeveloperMode bool              `json:"developer_mode,omitempty"`
+}
+
+// PackageLocalHTTPResponse is the result of proxying a package sidecar HTTP request through the host.
+// Iframes must not call loopback URLs directly (WebView and timing issues); they use the bridge instead.
+type PackageLocalHTTPResponse struct {
+	Status      int    `json:"status"`
+	ContentType string `json:"content_type"`
+	Body        string `json:"body"`
+}
+
+// packageAssetURL returns a same-origin path for the package web entry (served by talosPackageMiddleware).
+func packageAssetURL(pkg *packages.PackageInfo, webEntry string) string {
+	entry := strings.TrimSpace(webEntry)
+	if entry == "" || pkg == nil {
+		return ""
+	}
+	webPath := filepath.Join(pkg.DirPath, entry)
+	webPath, err := filepath.Abs(filepath.Clean(webPath))
+	if err != nil {
+		return ""
+	}
+	pkgRoot, err := filepath.Abs(filepath.Clean(pkg.DirPath))
+	if err != nil {
+		return ""
+	}
+	rel, err := filepath.Rel(pkgRoot, webPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	dirName := strings.TrimSpace(pkg.DirName)
+	if dirName == "" {
+		dirName = filepath.Base(pkg.DirPath)
+	}
+	relSlash := filepath.ToSlash(rel)
+	var segs []string
+	for _, s := range strings.Split(relSlash, "/") {
+		if s == "" || s == "." {
+			continue
+		}
+		if s == ".." {
+			return ""
+		}
+		segs = append(segs, url.PathEscape(s))
+	}
+	if len(segs) == 0 {
+		return ""
+	}
+	return talosPackageURLPrefix + url.PathEscape(dirName) + "/" + strings.Join(segs, "/")
 }
 
 // PermissionEntry is one persisted scope grant/deny row for host UI.
@@ -105,9 +174,21 @@ type AppManifestView struct {
 const launchpadPackageID = "app.launchpad"
 const devServerLogName = "launchpad-dev"
 
+func resolveRootDir() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	abs, err := filepath.Abs(wd)
+	if err != nil {
+		return wd
+	}
+	return abs
+}
+
 // NewApp creates a new App application struct
 func NewApp() *App {
-	rootDir := "."
+	rootDir := resolveRootDir()
 	packagesDir := filepath.Join(rootDir, "Packages")
 	hubServer := hub.NewServer(hub.DefaultSocketURL())
 
@@ -125,7 +206,106 @@ func NewApp() *App {
 		permissionAuditPath: filepath.Join(rootDir, "Temp", "logs", "permission_audit.jsonl"),
 		packages:            make(map[string]*packages.PackageInfo),
 		devResolvedURL:      make(map[string]string),
+		devReachCache:       make(map[string]devReachOutcome),
+		sqlStore:            minisql.NewStore(rootDir),
+		sidecarLoopbackPort: make(map[string]string),
 	}
+}
+
+type devReachOutcome struct {
+	usePackaged bool // true: last probe saw dev URL down; serve /talos-pkg/ instead
+	until       time.Time
+}
+
+func devReachCacheKey(appID, endpoint string) string {
+	return appID + "\x00" + strings.TrimSpace(endpoint)
+}
+
+func (a *App) clearDevReachCacheForApp(appID string) {
+	a.devReachMu.Lock()
+	defer a.devReachMu.Unlock()
+	prefix := appID + "\x00"
+	for k := range a.devReachCache {
+		if strings.HasPrefix(k, prefix) {
+			delete(a.devReachCache, k)
+		}
+	}
+}
+
+func (a *App) cachedDevReachOutcome(appID, endpoint string) (usePackaged bool, ok bool) {
+	a.devReachMu.Lock()
+	defer a.devReachMu.Unlock()
+	key := devReachCacheKey(appID, endpoint)
+	e, hit := a.devReachCache[key]
+	if !hit || time.Now().After(e.until) {
+		return false, false
+	}
+	return e.usePackaged, true
+}
+
+func (a *App) storeDevReachOutcome(appID, endpoint string, usePackaged bool) {
+	a.devReachMu.Lock()
+	defer a.devReachMu.Unlock()
+	key := devReachCacheKey(appID, endpoint)
+	ttl := 10 * time.Second
+	if usePackaged {
+		ttl = 4 * time.Second
+	}
+	a.devReachCache[key] = devReachOutcome{usePackaged: usePackaged, until: time.Now().Add(ttl)}
+}
+
+func shouldProbeDevHTTPEndpoint(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return false
+	}
+	host := strings.ToLower(strings.Trim(parsed.Hostname(), "[]"))
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasPrefix(host, "127.")
+}
+
+// httpDevEndpointReachable reports whether an http(s) dev server responds (HEAD, then GET).
+func httpDevEndpointReachable(endpoint string) bool {
+	u := strings.TrimSpace(endpoint)
+	if u == "" {
+		return false
+	}
+	if _, err := url.Parse(u); err != nil {
+		return false
+	}
+	client := &http.Client{Timeout: 700 * time.Millisecond}
+	try := func(method string) bool {
+		req, err := http.NewRequest(method, u, nil)
+		if err != nil {
+			return false
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		if method == http.MethodGet {
+			_, _ = io.Copy(io.Discard, resp.Body)
+		}
+		return resp.StatusCode < 500
+	}
+	if try(http.MethodHead) {
+		return true
+	}
+	return try(http.MethodGet)
+}
+
+func packagedWebEntryURL(pkg *packages.PackageInfo) string {
+	if pkg == nil || pkg.Manifest == nil {
+		return ""
+	}
+	entry := strings.TrimSpace(pkg.Manifest.WebEntry)
+	if entry == "" {
+		return ""
+	}
+	return packageAssetURL(pkg, entry)
 }
 
 // startup is called when the app starts. The context is saved
@@ -195,6 +375,12 @@ func (a *App) startup(ctx context.Context) {
 	}()
 
 	go a.ensureLaunchpadOrQuit()
+
+	if p, err := a.LoadUserPrefs(); err == nil {
+		a.devMu.Lock()
+		a.prefsDeveloperMode = p.DeveloperMode
+		a.devMu.Unlock()
+	}
 }
 
 func (a *App) shutdown(_ context.Context) {
@@ -241,6 +427,13 @@ func (a *App) StartPackage(packageID string) error {
 		"TALOS_APP_DATA_DIR": dataDir,
 		"TALOS_HUB_SOCKET":   a.hub.SocketURL(),
 	}
+	if a.sqlStore != nil {
+		if dsn, _, err := a.sqlStore.Provision(packageID); err == nil {
+			env["TALOS_SQL_DSN"] = dsn
+		} else {
+			a.logError("minisql", fmt.Sprintf("provision sql for %s: %v", packageID, err))
+		}
+	}
 	if err := a.processManager.Start(a.ctx, pkg, env); err != nil {
 		a.logError("package", fmt.Sprintf("start failed for %s: %v", packageID, err))
 		return err
@@ -248,7 +441,7 @@ func (a *App) StartPackage(packageID string) error {
 	a.logInfo("package", fmt.Sprintf("started %s (log: %s)", packageID, filepath.Join(a.packageLogDir, packageID+".log")))
 	go a.promptDeclaredNetworkPermissions(pkg)
 
-	if buildmode.DevelopmentAllowed() && pkg.Manifest.Development != nil && len(pkg.Manifest.Development.Command) > 0 {
+	if a.effectiveDevelopmentEnabled() && pkg.Manifest.Development != nil && len(pkg.Manifest.Development.Command) > 0 {
 		a.clearDevResolvedURL(packageID)
 		manifestDev := strings.TrimSpace(pkg.Manifest.Development.URL)
 		waitForInitialResolve := manifestDev == ""
@@ -282,6 +475,8 @@ func (a *App) StartPackage(packageID string) error {
 			}
 		}
 	}
+	// Next manifest read (e.g. GetInstalledApps after launch) should re-probe dev loopback, not reuse a stale packaged fallback from before Vite was ready.
+	a.clearDevReachCacheForApp(packageID)
 	return nil
 }
 
@@ -310,6 +505,10 @@ func (a *App) StopPackage(packageID string) error {
 	if err != nil {
 		a.logError("package", fmt.Sprintf("stop failed for %s: %v", packageID, err))
 		return err
+	}
+	a.clearCachedSidecarPort(packageID)
+	if remErr := a.removeAPIPortFileForApp(packageID); remErr != nil {
+		a.logError("package", fmt.Sprintf("remove api-port for %s: %v", packageID, remErr))
 	}
 	a.logInfo("package", fmt.Sprintf("stopped %s", packageID))
 	return nil
@@ -622,7 +821,12 @@ func (a *App) handlePackageEvent(evt packages.DiscoveryEvent) {
 		}
 	case packages.EventRemoved:
 		delete(a.packages, evt.PackageID)
+		_ = a.processManager.StopDev(evt.PackageID)
 		_ = a.processManager.Stop(evt.PackageID)
+		if a.sqlStore != nil {
+			_ = a.sqlStore.Revoke(evt.PackageID)
+		}
+		a.clearDevResolvedURL(evt.PackageID)
 		a.hub.UnregisterHandler(evt.PackageID)
 		a.logInfo("packages", fmt.Sprintf("removed %s", evt.PackageID))
 	}
@@ -672,6 +876,9 @@ func (a *App) logError(source, message string) {
 }
 
 func (a *App) writeLogLine(level, source, message string) {
+	if a.ctx == nil {
+		return
+	}
 	a.logMu.Lock()
 	defer a.logMu.Unlock()
 
@@ -784,7 +991,10 @@ func (a *App) resolveLogSourcePath(source string) (string, error) {
 // GetRuntimeInfo returns runtime flags useful for frontend dev tools.
 func (a *App) GetRuntimeInfo() map[string]any {
 	return map[string]any{
-		"dev_mode": strings.TrimSpace(os.Getenv("TALOS_DEV_MODE")) == "1",
+		"dev_mode":                     buildmode.DevelopmentAllowed(),
+		"developer_mode":               a.GetDeveloperMode(),
+		"effective_development":        a.effectiveDevelopmentEnabled(),
+		"development_features_enabled": a.DevelopmentFeaturesEnabled(),
 	}
 }
 
@@ -817,7 +1027,13 @@ func (a *App) SaveUserPrefs(prefs UserPrefs) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, raw, 0o600)
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		return err
+	}
+	a.devMu.Lock()
+	a.prefsDeveloperMode = prefs.DeveloperMode
+	a.devMu.Unlock()
+	return nil
 }
 
 // LoadUserPrefs loads persisted UI preferences if available.
@@ -826,7 +1042,7 @@ func (a *App) LoadUserPrefs() (UserPrefs, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return UserPrefs{Theme: "minecraft", TabColors: map[string]string{}}, nil
+			return UserPrefs{Theme: "minecraft", TabColors: map[string]string{}, DeveloperMode: false}, nil
 		}
 		return UserPrefs{}, err
 	}
@@ -877,38 +1093,97 @@ func (a *App) GetInstalledApps() []AppManifestView {
 
 func (a *App) setDevResolvedURL(appID, base string) {
 	a.devResolvedMu.Lock()
-	defer a.devResolvedMu.Unlock()
 	a.devResolvedURL[appID] = strings.TrimSpace(base)
+	a.devResolvedMu.Unlock()
+	a.clearDevReachCacheForApp(appID)
 }
 
 func (a *App) clearDevResolvedURL(appID string) {
 	a.devResolvedMu.Lock()
-	defer a.devResolvedMu.Unlock()
 	delete(a.devResolvedURL, appID)
+	a.devResolvedMu.Unlock()
+	a.clearDevReachCacheForApp(appID)
+}
+
+// effectiveDevelopmentEnabled is true when manifest development.* should be honored:
+// machine env TALOS_DEV_MODE=1 or user enabled Developer mode in Settings.
+func (a *App) effectiveDevelopmentEnabled() bool {
+	if buildmode.DevelopmentAllowed() {
+		return true
+	}
+	a.devMu.RLock()
+	defer a.devMu.RUnlock()
+	return a.prefsDeveloperMode
+}
+
+// SetDeveloperMode persists the Settings toggle and stops dev servers when disabling.
+func (a *App) SetDeveloperMode(enabled bool) error {
+	prefs, err := a.LoadUserPrefs()
+	if err != nil {
+		prefs = UserPrefs{Theme: "minecraft", TabColors: map[string]string{}}
+	}
+	prefs.DeveloperMode = enabled
+	if err := a.SaveUserPrefs(prefs); err != nil {
+		return err
+	}
+	if !enabled {
+		a.processManager.StopAllDev()
+		a.devResolvedMu.Lock()
+		a.devResolvedURL = make(map[string]string)
+		a.devResolvedMu.Unlock()
+	}
+	return nil
+}
+
+// GetDeveloperMode returns the persisted Settings flag (not including TALOS_DEV_MODE alone).
+func (a *App) GetDeveloperMode() bool {
+	a.devMu.RLock()
+	defer a.devMu.RUnlock()
+	return a.prefsDeveloperMode
 }
 
 // manifestDevIFrameURL returns iframe URL and bridge origins, applying a discovered dev-server URL when present.
 func (a *App) manifestDevIFrameURL(pkg *packages.PackageInfo) (u string, origins []string, dev bool) {
-	u, origins, dev = resolvePackageURL(pkg)
+	u, origins, dev = resolvePackageURL(pkg, a.effectiveDevelopmentEnabled())
 	if !dev || pkg == nil || pkg.Manifest == nil {
 		return u, origins, dev
 	}
+	final := u
 	a.devResolvedMu.RLock()
 	override := a.devResolvedURL[pkg.Manifest.ID]
 	a.devResolvedMu.RUnlock()
-	if override == "" {
-		if dev {
-			return u, process.ExpandLoopbackOrigins(origins), dev
+	if override != "" {
+		final = override
+		parsed, err := url.Parse(override)
+		if err == nil {
+			extra := parsed.Scheme + "://" + parsed.Host
+			origins = mergeOriginsUnique(origins, extra)
 		}
-		return u, origins, dev
 	}
-	parsed, err := url.Parse(override)
-	if err != nil {
-		return override, process.ExpandLoopbackOrigins(origins), dev
+	// Command-only dev uses about:blank until log discovery fills devResolvedURL; then final is the live URL.
+	if strings.TrimSpace(final) == "" || final == "about:blank" {
+		return "about:blank", process.ExpandLoopbackOrigins(origins), dev
 	}
-	extra := parsed.Scheme + "://" + parsed.Host
-	merged := mergeOriginsUnique(origins, extra)
-	return override, process.ExpandLoopbackOrigins(merged), dev
+	if !shouldProbeDevHTTPEndpoint(final) {
+		return final, process.ExpandLoopbackOrigins(origins), dev
+	}
+	packaged := packagedWebEntryURL(pkg)
+	if packaged == "" {
+		return final, process.ExpandLoopbackOrigins(origins), dev
+	}
+	appID := pkg.Manifest.ID
+	usePackaged, ok := a.cachedDevReachOutcome(appID, final)
+	if !ok {
+		usePackaged = !httpDevEndpointReachable(final)
+		a.storeDevReachOutcome(appID, final, usePackaged)
+		if usePackaged && a.ctx != nil {
+			a.logInfo("package", fmt.Sprintf("%s: dev URL %q unreachable, using packaged web assets", appID, final))
+		}
+	}
+	if usePackaged {
+		return packaged, nil, false
+	}
+	return final, process.ExpandLoopbackOrigins(origins), dev
 }
 
 func mergeOriginsUnique(origins []string, extra string) []string {
@@ -937,12 +1212,18 @@ func (a *App) manifestViewForPackage(pkg *packages.PackageInfo) AppManifestView 
 	if err != nil {
 		trust = string(packageinstall.TrustUnknown)
 	}
+	desc := strings.TrimSpace(pkg.Manifest.Description)
+	if desc == "" {
+		desc = "Installed Tiny App"
+	}
+	storeURL := strings.TrimSpace(pkg.Manifest.StoreURL)
 	return AppManifestView{
 		ID:             pkg.Manifest.ID,
 		Name:           pkg.Manifest.Name,
 		Icon:           icon,
 		URL:            url,
-		Description:    "Installed Tiny App",
+		Description:    desc,
+		StoreURL:       storeURL,
 		Category:       "installed",
 		AllowedOrigins: origins,
 		Development:    dev,
@@ -956,14 +1237,23 @@ func (a *App) trustedKeysDir() string {
 
 // packageToManifestView is used by tests that construct a synthetic App without trust evaluation.
 func packageToManifestView(pkg *packages.PackageInfo) AppManifestView {
-	url, origins, dev := resolvePackageURL(pkg)
+	if pkg == nil || pkg.Manifest == nil {
+		return AppManifestView{}
+	}
+	url, origins, dev := resolvePackageURL(pkg, false)
 	icon := resolveManifestIcon(pkg)
+	desc := strings.TrimSpace(pkg.Manifest.Description)
+	if desc == "" {
+		desc = "Installed Tiny App"
+	}
+	storeURL := strings.TrimSpace(pkg.Manifest.StoreURL)
 	return AppManifestView{
 		ID:             pkg.Manifest.ID,
 		Name:           pkg.Manifest.Name,
 		Icon:           icon,
 		URL:            url,
-		Description:    "Installed Tiny App",
+		Description:    desc,
+		StoreURL:       storeURL,
 		Category:       "installed",
 		AllowedOrigins: origins,
 		Development:    dev,
@@ -971,16 +1261,20 @@ func packageToManifestView(pkg *packages.PackageInfo) AppManifestView {
 }
 
 // resolvePackageURL returns iframe URL, optional postMessage allowlist, and whether dev URL is active.
-func resolvePackageURL(pkg *packages.PackageInfo) (u string, allowed []string, devMode bool) {
+func resolvePackageURL(pkg *packages.PackageInfo, developmentFeaturesEnabled bool) (u string, allowed []string, devMode bool) {
 	if pkg == nil || pkg.Manifest == nil {
 		return "", nil, false
 	}
 	def := pkg.Manifest
 	fileU := ""
 	if strings.TrimSpace(def.WebEntry) != "" {
-		fileU = "file://" + filepath.Join(pkg.DirPath, def.WebEntry)
+		webPath := filepath.Join(pkg.DirPath, def.WebEntry)
+		if abs, err := filepath.Abs(webPath); err == nil {
+			webPath = abs
+		}
+		fileU = packageAssetURL(pkg, def.WebEntry)
 	}
-	if !buildmode.DevelopmentAllowed() || def.Development == nil {
+	if !developmentFeaturesEnabled || def.Development == nil {
 		return fileU, nil, false
 	}
 	d := def.Development
@@ -999,6 +1293,75 @@ func resolvePackageURL(pkg *packages.PackageInfo) (u string, allowed []string, d
 	return devURL, origins, true
 }
 
+// fileURLToLocalPath converts a file:// URL to an OS path (including file:///… on Unix and file:///C:/… on Windows).
+func fileURLToLocalPath(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || !strings.EqualFold(u.Scheme, "file") {
+		return ""
+	}
+	pathPart := u.Path
+	if pathPart == "" {
+		return ""
+	}
+	pathPart, err = url.PathUnescape(pathPart)
+	if err != nil || pathPart == "" {
+		return ""
+	}
+	if goruntime.GOOS == "windows" && len(pathPart) >= 3 && pathPart[0] == '/' && pathPart[2] == ':' {
+		pathPart = pathPart[1:]
+	}
+	return filepath.Clean(pathPart)
+}
+
+func iconBytesToDataURL(bytes []byte, pathHint string) string {
+	ext := strings.ToLower(filepath.Ext(pathHint))
+	contentType := mime.TypeByExtension(ext)
+	if strings.TrimSpace(contentType) == "" {
+		contentType = http.DetectContentType(bytes)
+	}
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "application/octet-stream"
+	}
+	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(bytes)
+}
+
+// pathWithinPackageDir reports whether target is equal to root or a path inside root (no "..").
+func pathWithinPackageDir(root, target string) bool {
+	root = filepath.Clean(root)
+	target = filepath.Clean(target)
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return false
+	}
+	if rel == "." {
+		return true
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// manifestRelativeIconPath resolves an icon path relative to the package directory (where manifest.yaml lives).
+// Leading "./", "/", or "\" are ignored so "dist/x.png", "/dist/x.png", and "./dist/x.png" all resolve the same.
+func manifestRelativeIconPath(pkgDir, raw string) (string, bool) {
+	pkgDir = filepath.Clean(pkgDir)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", false
+	}
+	rel := raw
+	rel = strings.TrimPrefix(rel, "./")
+	rel = strings.TrimLeft(rel, "/\\")
+	rel = strings.TrimPrefix(rel, "./")
+	if rel == "" {
+		return "", false
+	}
+	joined := filepath.Join(pkgDir, filepath.FromSlash(filepath.ToSlash(rel)))
+	joined = filepath.Clean(joined)
+	if !pathWithinPackageDir(pkgDir, joined) {
+		return "", false
+	}
+	return joined, true
+}
+
 func resolveManifestIcon(pkg *packages.PackageInfo) string {
 	if pkg == nil || pkg.Manifest == nil {
 		return ""
@@ -1010,25 +1373,34 @@ func resolveManifestIcon(pkg *packages.PackageInfo) string {
 	if strings.HasPrefix(rawIcon, "data:") || strings.HasPrefix(rawIcon, "http://") || strings.HasPrefix(rawIcon, "https://") {
 		return rawIcon
 	}
-	relativeIcon := strings.TrimLeft(rawIcon, "/\\")
-	iconPath := filepath.Clean(filepath.Join(pkg.DirPath, relativeIcon))
-	packageRoot := filepath.Clean(pkg.DirPath)
-	if !strings.HasPrefix(iconPath, packageRoot+string(filepath.Separator)) && iconPath != packageRoot {
+	root := filepath.Clean(pkg.DirPath)
+
+	if strings.HasPrefix(strings.ToLower(rawIcon), "file://") {
+		p := fileURLToLocalPath(rawIcon)
+		if p == "" {
+			return rawIcon
+		}
+		p = filepath.Clean(p)
+		// Only embed file:// icons that live under this package directory (same rule as relative paths).
+		if !pathWithinPackageDir(root, p) {
+			return rawIcon
+		}
+		bytes, err := os.ReadFile(p)
+		if err != nil {
+			return rawIcon
+		}
+		return iconBytesToDataURL(bytes, p)
+	}
+
+	iconPath, ok := manifestRelativeIconPath(root, rawIcon)
+	if !ok {
 		return rawIcon
 	}
 	bytes, err := os.ReadFile(iconPath)
 	if err != nil {
 		return rawIcon
 	}
-	ext := strings.ToLower(filepath.Ext(iconPath))
-	contentType := mime.TypeByExtension(ext)
-	if strings.TrimSpace(contentType) == "" {
-		contentType = http.DetectContentType(bytes)
-	}
-	if strings.TrimSpace(contentType) == "" {
-		contentType = "application/octet-stream"
-	}
-	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(bytes)
+	return iconBytesToDataURL(bytes, iconPath)
 }
 
 // GetStoreApps returns placeholder store metadata.

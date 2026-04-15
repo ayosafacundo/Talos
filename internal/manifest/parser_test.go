@@ -8,6 +8,8 @@ func TestParse_ValidManifest(t *testing.T) {
 	raw := []byte(`
 id: app.calculator
 name: Calculator
+description: Does math
+store_url: https://example.com/pkg
 version: "1.0.0"
 icon: web/icon.png
 binary: bin/calculator
@@ -25,6 +27,12 @@ multi_instance: true
 
 	if def.ID != "app.calculator" {
 		t.Fatalf("expected id app.calculator, got %q", def.ID)
+	}
+	if def.Description != "Does math" {
+		t.Fatalf("description: got %q", def.Description)
+	}
+	if def.StoreURL != "https://example.com/pkg" {
+		t.Fatalf("store_url: got %q", def.StoreURL)
 	}
 	if !def.MultiInstance {
 		t.Fatalf("expected multi_instance=true")

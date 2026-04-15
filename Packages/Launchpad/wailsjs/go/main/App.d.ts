@@ -15,6 +15,8 @@ export function DenyPermission(arg1:string,arg2:string):Promise<void>;
 
 export function DevelopmentFeaturesEnabled():Promise<boolean>;
 
+export function GetDeveloperMode():Promise<boolean>;
+
 export function GetInstalledApps():Promise<Array<main.AppManifestView>>;
 
 export function GetLogCatalog():Promise<Record<string, string>>;
@@ -61,6 +63,8 @@ export function LoadAppStateText(arg1:string):Promise<string>;
 
 export function LoadUserPrefs():Promise<main.UserPrefs>;
 
+export function PackageLocalHTTP(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.PackageLocalHTTPResponse>;
+
 export function ParanoidPackageTrust():Promise<boolean>;
 
 export function PickZipAndInstall():Promise<string>;
@@ -88,6 +92,8 @@ export function SaveAppStateBase64(arg1:string,arg2:string):Promise<void>;
 export function SaveAppStateText(arg1:string,arg2:string):Promise<void>;
 
 export function SaveUserPrefs(arg1:main.UserPrefs):Promise<void>;
+
+export function SetDeveloperMode(arg1:boolean):Promise<void>;
 
 export function StartPackage(arg1:string):Promise<void>;
 

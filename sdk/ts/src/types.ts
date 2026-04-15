@@ -21,6 +21,13 @@ export interface TalosTransport {
   resolvePath(appId: string, relativePath: string): Promise<string>
   readScopedText?(appId: string, relativePath: string): Promise<ScopedTextReadResult>
   writeScopedText?(appId: string, relativePath: string, text: string): Promise<void>
+  /** Host proxy to package binary loopback API (/api/... only). */
+  packageLocalHttp?(
+    appId: string,
+    method: string,
+    path: string,
+    body: string,
+  ): Promise<{ status: number; content_type: string; body: string }>
   setContextMenuOptions?(appId: string, options: ContextMenuOption[]): Promise<void>
   clearContextMenuOptions?(appId: string): Promise<void>
   openContextMenu?(appId: string, x?: number, y?: number): Promise<void>

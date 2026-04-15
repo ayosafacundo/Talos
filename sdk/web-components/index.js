@@ -63,6 +63,10 @@ export function createTalosApp(appID) {
       await ensureExternalPermission(client, relativePath, "read")
       return client.readScopedText(relativePath)
     },
+    /** Proxies to the package binary loopback API through the Talos host (path must start with /api/). */
+    packageLocalHttp(method, path, body = "") {
+      return client.packageLocalHttp(method, path, body)
+    },
   }
 }
 

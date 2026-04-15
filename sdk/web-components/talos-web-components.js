@@ -104,6 +104,44 @@ class TalosButton extends HTMLElement {
   get disabled() {
     return this.hasAttribute("disabled");
   }
+  /** React sets boolean props as properties; getter-only `disabled` throws on WebKit. */
+  set disabled(v) {
+    if (v) {
+      this.setAttribute("disabled", "");
+    } else {
+      this.removeAttribute("disabled");
+    }
+  }
+  get variant() {
+    return this.getAttribute("variant") || "solid";
+  }
+  set variant(v) {
+    if (v == null || v === "") {
+      this.removeAttribute("variant");
+    } else {
+      this.setAttribute("variant", String(v));
+    }
+  }
+  get size() {
+    return this.getAttribute("size") || "md";
+  }
+  set size(v) {
+    if (v == null || v === "") {
+      this.removeAttribute("size");
+    } else {
+      this.setAttribute("size", String(v));
+    }
+  }
+  get tone() {
+    return this.getAttribute("tone") || "accent";
+  }
+  set tone(v) {
+    if (v == null || v === "") {
+      this.removeAttribute("tone");
+    } else {
+      this.setAttribute("tone", String(v));
+    }
+  }
   attributeChangedCallback() {
     this.sync();
   }
@@ -199,6 +237,16 @@ class TalosAlert extends HTMLElement {
   }
   sync() {
     this.base.dataset.tone = this.getAttribute("tone") || "accent";
+  }
+  get tone() {
+    return this.getAttribute("tone") || "accent";
+  }
+  set tone(v) {
+    if (v == null || v === "") {
+      this.removeAttribute("tone");
+    } else {
+      this.setAttribute("tone", String(v));
+    }
   }
 }
 

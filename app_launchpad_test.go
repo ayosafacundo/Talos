@@ -48,9 +48,9 @@ func TestGetStartupLaunchpadReturnsLaunchpadManifest(t *testing.T) {
 	if got.Name != "Launchpad" {
 		t.Fatalf("expected launchpad name, got %q", got.Name)
 	}
-	if !strings.HasSuffix(got.URL, filepath.ToSlash("Packages/Launchpad/dist/index.html")) &&
-		!strings.HasSuffix(got.URL, "Packages\\Launchpad\\dist\\index.html") {
-		t.Fatalf("expected launchpad URL suffix, got %q", got.URL)
+	want := "/talos-pkg/Launchpad/dist/index.html"
+	if !strings.HasSuffix(got.URL, want) {
+		t.Fatalf("expected launchpad URL suffix %q, got %q", want, got.URL)
 	}
 }
 
@@ -121,7 +121,7 @@ func TestResolvePackageURL_CommandOnlyDevStartsBlank(t *testing.T) {
 			},
 		},
 	}
-	u, _, dev := resolvePackageURL(pkg)
+	u, _, dev := resolvePackageURL(pkg, true)
 	if !dev {
 		t.Fatal("expected dev mode true for command-only development config")
 	}

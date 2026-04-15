@@ -22,7 +22,9 @@ From repo root, use `make deps` (runs `npm install` for Launchpad, [`scripts/ens
 
 If you run `go mod tidy` yourself, run `npm --prefix Packages/Launchpad install` and `bash scripts/ensure-npm-go-modules.sh` first whenever `node_modules` changes.
 
-**CI parity:** `make verify` runs Go tests, `go build ./...`, Launchpad Vitest, **`npm --prefix sdk/ts test`**, and the production buildmode gate. Hub socket integration tests are `bash scripts/run_integration_hub.sh` (also run in CI after verify).
+**CI parity:** `make verify` runs Go tests, `go build ./...`, Launchpad Vitest, **`npm --prefix sdk/ts test`**, and the `internal/buildmode` test (see `make production-gate`). Hub socket integration tests are `bash scripts/run_integration_hub.sh` (also run in CI after verify).
+
+**Developer mode vs release binary:** `make app-build` ships a single production-tagged binary. Manifest `development` commands (e.g. `npm run dev`) are honored when **Developer mode** is on in Launchpad Settings, or when **`TALOS_DEV_MODE=1`** is set—same effective behavior as `make dev` for iframe URL selection.
 
 From frontend:
 

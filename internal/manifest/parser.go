@@ -22,10 +22,12 @@ var (
 type Definition struct {
 	ID            string   `yaml:"id" json:"id"`
 	Name          string   `yaml:"name" json:"name"`
+	Description   string   `yaml:"description,omitempty" json:"description,omitempty"`
 	Version       string   `yaml:"version,omitempty" json:"version,omitempty"`
 	Icon          string   `yaml:"icon,omitempty" json:"icon,omitempty"`
 	Binary        string   `yaml:"binary,omitempty" json:"binary,omitempty"`
 	WebEntry      string   `yaml:"web_entry,omitempty" json:"web_entry,omitempty"`
+	StoreURL      string   `yaml:"store_url,omitempty" json:"store_url,omitempty"`
 	Permissions   []string `yaml:"permissions,omitempty" json:"permissions,omitempty"`
 	MultiInstance bool     `yaml:"multi_instance" json:"multi_instance"`
 	// Development is optional; honored only when the host is built without production tag and TALOS_DEV_MODE=1.
@@ -74,6 +76,8 @@ func ParsePackageDir(packageDir string) (*Definition, error) {
 func (m *Definition) Validate() error {
 	m.ID = strings.TrimSpace(m.ID)
 	m.Name = strings.TrimSpace(m.Name)
+	m.Description = strings.TrimSpace(m.Description)
+	m.StoreURL = strings.TrimSpace(m.StoreURL)
 	m.Binary = filepath.Clean(strings.TrimSpace(m.Binary))
 	m.Icon = strings.TrimSpace(m.Icon)
 	m.WebEntry = strings.TrimSpace(m.WebEntry)

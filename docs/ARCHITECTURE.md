@@ -15,8 +15,12 @@ Talos is a local-first desktop host that discovers package manifests, launches p
 1. Host starts and initializes directories (`Packages`, `Temp`, logs, trust stores).
 2. Package discovery scans manifests and emits package events.
 3. Launchpad loads installed apps and renders package entries.
-4. User action starts package binary (if configured) and loads iframe `web_entry` (or dev URL in dev mode).
+4. User action starts package binary (if configured) and loads iframe `web_entry`, or a loopback dev URL when Developer mode (or `TALOS_DEV_MODE=1`) is active and the manifest defines `development`.
 5. Tiny app bridge calls are routed by Launchpad to host APIs.
+
+## Data plane (mini-SQL)
+
+- The host provisions a **SQLite database file per app** under `Temp/minisql/apps/` and passes **`TALOS_SQL_DSN`** to the package `binary` process. Isolation is per file; iframe-only apps would need a future host bridge (see `internal/minisql/bridge.go`).
 
 ## IPC model
 

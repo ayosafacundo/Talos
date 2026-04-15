@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 import {
   BroadcastMessage,
   DenyPermission,
   DevelopmentFeaturesEnabled,
+  GetDeveloperMode,
+  SetDeveloperMode,
   GetInstalledApps,
   GetThemes,
   GrantPermission,
@@ -14,6 +17,7 @@ import {
   ListPermissionEntries,
   ListRepositoryPackages,
   LoadUserPrefs,
+  PackageLocalHTTP,
   ParanoidPackageTrust,
   PickZipAndInstall,
   SaveUserPrefs,
@@ -42,6 +46,7 @@ import {
   replyPostMessageTarget,
   resolveTrustedSender,
 } from "./bridge";
+import { talosBridgeDebugLog } from "./bridge-debug";
 import { wailsShellReady } from "./wails-env";
 
 const LAUNCHPAD_ID = "app.launchpad";
@@ -59,7 +64,7 @@ type AppInstance = {
   iframeEpoch: number;
 };
 
-type SettingsTab = "themes" | "components" | "permissions" | "about";
+type SettingsTab = "themes" | "components" | "permissions" | "developer" | "about";
 
 type PermissionHistoryItem = {
   ts: number;
@@ -139,7 +144,15 @@ function withReload(url: string): string {
 function withBridgeToken(url: string, token: string): string {
   if (!url || !token) return url;
   const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}_talos_bt=${encodeURIComponent(token)}`;
+  let out = `${url}${sep}_talos_bt=${encodeURIComponent(token)}`;
+  // WebKit/Wails often misreports ancestorOrigins for iframe→parent postMessage; shell origin is explicit.
+  if (typeof window !== "undefined") {
+    const shell = window.location.origin;
+    if (shell) {
+      out += `&_talos_shell_origin=${encodeURIComponent(shell)}`;
+    }
+  }
+  return out;
 }
 
 function withThemeSnapshot(url: string, themeName: string, variant: ThemeVariantManifest): string {
@@ -147,13 +160,44 @@ function withThemeSnapshot(url: string, themeName: string, variant: ThemeVariant
   const sep = url.includes("?") ? "&" : "?";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const themeHref = `${origin}/themes/${encodeURIComponent(themeName)}.css`;
+  const tokensHref = `${origin}/talos/tokens.css`;
   const componentsHref = variant.components_css_href
     ? `${origin}${variant.components_css_href}`
     : `${origin}/talos/components.css`;
   return `${url}${sep}_talos_theme=${encodeURIComponent(themeName)}&` +
     `_talos_theme_variant=${encodeURIComponent(variant.variant_id)}&` +
     `_talos_theme_href=${encodeURIComponent(themeHref)}&` +
+    `_talos_tokens_href=${encodeURIComponent(tokensHref)}&` +
     `_talos_components_href=${encodeURIComponent(componentsHref)}`;
+}
+
+/** Drop query so bridge/theme params are rebuilt cleanly (avoids duplicate _talos_* keys). */
+function stripUrlForIframeBase(url: string): string {
+  const u = String(url || "").trim();
+  if (!u) return "";
+  try {
+    const parsed = new URL(u);
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    const q = u.indexOf("?");
+    return q === -1 ? u : u.slice(0, q);
+  }
+}
+
+function buildAppIframeUrl(
+  catalogUrl: string,
+  bridgeToken: string,
+  themeName: string,
+  variant: ThemeVariantManifest,
+): string {
+  const base = String(catalogUrl || "").trim();
+  if (!base || !bridgeToken) return base;
+  return withThemeSnapshot(
+    withBridgeToken(withReload(base), bridgeToken),
+    themeName,
+    variant,
+  );
 }
 
 function newBridgeToken(): string {
@@ -171,12 +215,20 @@ function iconURLForApp(app?: main.AppManifestView): string {
   if (!app) return "";
   const icon = String(app.icon || "");
   if (!icon) return "";
-  if (icon.startsWith("http://") || icon.startsWith("https://") || icon.startsWith("file://") || icon.startsWith("data:")) {
+  const lower = icon.toLowerCase();
+  if (
+    lower.startsWith("http://") ||
+    lower.startsWith("https://") ||
+    lower.startsWith("file://") ||
+    lower.startsWith("data:")
+  ) {
     return icon;
   }
   if (!isLikelyAssetPath(icon)) return "";
   const appURL = String(app.url || "");
-  if (!appURL.startsWith("file://")) return "";
+  const isFile = appURL.startsWith("file://");
+  const isPkg = appURL.startsWith("/talos-pkg/");
+  if (!isFile && !isPkg) return "";
 
   const marker = "/dist/";
   const idx = appURL.indexOf(marker);
@@ -185,7 +237,12 @@ function iconURLForApp(app?: main.AppManifestView): string {
     return `${packageRoot}/${icon.replace(/^\/+/, "")}`;
   }
   try {
-    return new URL(icon, appURL).toString();
+    const base = isFile ? appURL : `https://local.invalid${appURL}`;
+    const resolved = new URL(icon, base);
+    if (isPkg) {
+      return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+    }
+    return resolved.toString();
   } catch {
     return "";
   }
@@ -244,6 +301,50 @@ function applyTheme(themeName: string): void {
   link.href = themeHref(themeName);
 }
 
+type TalosPackageIframeProps = {
+  app: AppInstance;
+  isFocused: boolean;
+  iframeRefs: MutableRefObject<Record<string, HTMLIFrameElement | null>>;
+  iframeLoadedEpochRef: MutableRefObject<Record<string, number>>;
+  postThemeUpdate: (app: AppInstance) => void;
+};
+
+/** Own row so the iframe ref callback can stay referentially stable across parent re-renders (avoids spurious ref(null) from inline refs). */
+function TalosPackageIframe({
+  app,
+  isFocused,
+  iframeRefs,
+  iframeLoadedEpochRef,
+  postThemeUpdate,
+}: TalosPackageIframeProps): React.ReactElement {
+  const setRef = useCallback(
+    (node: HTMLIFrameElement | null) => {
+      iframeRefs.current[app.id] = node;
+    },
+    [app.id, app.manifestId, iframeRefs],
+  );
+
+  return (
+    <iframe
+      src={app.url}
+      title={app.name}
+      data-talos-manifest-id={app.manifestId}
+      data-talos-bridge-token={app.bridgeToken}
+      ref={setRef}
+      style={{ display: isFocused ? "block" : "none" }}
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      onLoad={() => {
+        iframeLoadedEpochRef.current[app.id] = app.iframeEpoch;
+        postThemeUpdate(app);
+      }}
+      onError={() => {
+        iframeLoadedEpochRef.current[app.id] = -1;
+        talosBridgeDebugLog("iframe_nav_error", { instanceId: app.id, src: app.url });
+      }}
+    />
+  );
+}
+
 export default function App(): React.ReactElement {
   const [installedApps, setInstalledApps] = useState<main.AppManifestView[]>([]);
   const [storeApps, setStoreApps] = useState<main.AppManifestView[]>([]);
@@ -267,6 +368,7 @@ export default function App(): React.ReactElement {
   const [updateChannelURL, setUpdateChannelURL] = useState("");
   const [updateCheckResult, setUpdateCheckResult] = useState<string>("");
   const [installUiEnabled, setInstallUiEnabled] = useState(false);
+  const [developerMode, setDeveloperMode] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
   const [installBusy, setInstallBusy] = useState(false);
   const [urlInstall, setUrlInstall] = useState("");
@@ -293,7 +395,16 @@ export default function App(): React.ReactElement {
     items: [],
   });
   const iframeRefs = useRef<Record<string, HTMLIFrameElement | null>>({});
+  /** Last `iframeEpoch` for which `onLoad` fired; `-1` = navigation error (skip theme push). */
+  const iframeLoadedEpochRef = useRef<Record<string, number>>({});
   const packagesEventDebounceRef = useRef<number | undefined>(undefined);
+  const activeAppsRef = useRef<AppInstance[]>([]);
+  const focusedAppIdRef = useRef<string | null>(null);
+  const launchpadVisibleRef = useRef(false);
+
+  activeAppsRef.current = activeApps;
+  focusedAppIdRef.current = focusedAppId;
+  launchpadVisibleRef.current = launchpadVisible;
 
   const launchableApps = useMemo(
     () => installedApps.filter((app) => app.id !== LAUNCHPAD_ID),
@@ -338,6 +449,10 @@ export default function App(): React.ReactElement {
     scope: ContextMenuScope,
     items: ContextMenuItem[],
   ): void {
+    // With Wails EnableDefaultContextMenu, allow native menu (e.g. Inspect Element) when holding Ctrl/Meta/Shift.
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
     event.preventDefault();
     showContextMenuAt(event.clientX, event.clientY, title, scope, items);
   }
@@ -361,15 +476,14 @@ export default function App(): React.ReactElement {
   }
 
   async function closeAppInstance(instanceId: string, manifestId: string): Promise<void> {
-    setActiveApps((prev) => {
-      const next = prev.filter((app) => app.id !== instanceId);
-      setFocusedAppId((prevFocused) => {
-        if (prevFocused !== instanceId) return prevFocused;
-        return next[0]?.id ?? null;
-      });
-      setLaunchpadVisible((prevVisible) => prevVisible || next.length === 0);
-      return next;
-    });
+    const prev = activeAppsRef.current;
+    const next = prev.filter((app) => app.id !== instanceId);
+    const f = focusedAppIdRef.current;
+    const lp = launchpadVisibleRef.current;
+    setActiveApps(next);
+    setFocusedAppId(f === instanceId ? next[0]?.id ?? null : f);
+    setLaunchpadVisible(lp || next.length === 0);
+    delete iframeLoadedEpochRef.current[instanceId];
     try {
       await StopPackage(manifestId);
     } catch (error) {
@@ -431,6 +545,14 @@ export default function App(): React.ReactElement {
       return;
     }
     setHostBanner("");
+    const prev = activeAppsRef.current;
+    const existing = prev.find((app) => app.manifestId === manifest.id);
+    if (existing) {
+      setFocusedAppId(existing.id);
+      setLaunchpadVisible(false);
+      setSettingsVisible(false);
+      return;
+    }
     await StartPackage(manifest.id);
     let launchManifest = manifest;
     try {
@@ -442,32 +564,29 @@ export default function App(): React.ReactElement {
     } catch {
       // Keep original manifest snapshot if catalog refresh fails.
     }
-    setActiveApps((prev) => {
-      const existing = prev.find((app) => app.manifestId === launchManifest.id);
-      if (existing) {
-        setFocusedAppId(existing.id);
-        setLaunchpadVisible(false);
-        return prev;
-      }
-      const bridgeToken = newBridgeToken();
-      const origins = launchManifest.allowed_origins;
-      const next: AppInstance = {
-        id: `${launchManifest.id}:${Date.now()}`,
-        manifestId: launchManifest.id,
-        name: launchManifest.name,
-        icon: launchManifest.icon,
-        url: withThemeSnapshot(
-          withBridgeToken(withReload(launchManifest.url ?? ""), bridgeToken),
-          currentTheme,
-          activeThemeVariant,
-        ),
+    const bridgeToken = newBridgeToken();
+    const origins = launchManifest.allowed_origins;
+    const next: AppInstance = {
+      id: `${launchManifest.id}:${Date.now()}`,
+      manifestId: launchManifest.id,
+      name: launchManifest.name,
+      icon: launchManifest.icon,
+      url: buildAppIframeUrl(
+        launchManifest.url ?? "",
         bridgeToken,
-        allowed_origins: origins && origins.length > 0 ? [...origins] : undefined,
-        iframeEpoch: 0,
-      };
-      setFocusedAppId(next.id);
-      setLaunchpadVisible(false);
-      return [...prev, next];
+        currentTheme,
+        activeThemeVariant,
+      ),
+      bridgeToken,
+      allowed_origins: origins && origins.length > 0 ? [...origins] : undefined,
+      iframeEpoch: 0,
+    };
+    setFocusedAppId(next.id);
+    setLaunchpadVisible(false);
+    setSettingsVisible(false);
+    setActiveApps((p) => {
+      if (p.some((a) => a.manifestId === launchManifest.id)) return p;
+      return [...p, next];
     });
   }
 
@@ -640,6 +759,23 @@ export default function App(): React.ReactElement {
           respond(true, out, "", parsed.requestId);
           return;
         }
+        if (method === "packageLocalHttp") {
+          const httpMethod = String(params.method || "GET").trim().toUpperCase();
+          const httpPath = String(params.path || "");
+          const httpBody = String(params.body || "");
+          const out = await PackageLocalHTTP(manifestId, httpMethod, httpPath, httpBody);
+          respond(
+            true,
+            {
+              status: out.status,
+              content_type: out.content_type,
+              body: out.body,
+            },
+            "",
+            parsed.requestId,
+          );
+          return;
+        }
         if (method === "writeScopedText") {
           await WriteScopedText(
             manifestId,
@@ -730,6 +866,7 @@ export default function App(): React.ReactElement {
         }
         await reloadCatalog();
         await reloadThemes();
+        void GetDeveloperMode().then((v) => setDeveloperMode(!!v));
         void DevelopmentFeaturesEnabled().then((v) => setInstallUiEnabled(!!v));
         void ListRepositoryPackages()
           .then((rows) => {
@@ -770,13 +907,10 @@ export default function App(): React.ReactElement {
                 return app;
               }
               const manifest = installed.find((m) => m.id === pid);
-              const nextUrl = manifest
-                ? withThemeSnapshot(
-                  withBridgeToken(withReload(manifest.url ?? ""), app.bridgeToken),
-                  currentTheme,
-                  activeThemeVariant,
-                )
-                : withThemeSnapshot(withReload(app.url), currentTheme, activeThemeVariant);
+              const base = manifest?.url?.trim()
+                ? manifest.url
+                : stripUrlForIframeBase(app.url);
+              const nextUrl = buildAppIframeUrl(base, app.bridgeToken, currentTheme, activeThemeVariant);
               const origins = manifest?.allowed_origins;
               return {
                 ...app,
@@ -863,17 +997,47 @@ export default function App(): React.ReactElement {
 
   function postThemeUpdateToApp(app: AppInstance): void {
     const iframe = iframeRefs.current[app.id];
-    if (!iframe || !iframe.contentWindow) return;
-    const target = postMessageTargetForAppInstance(app, iframe);
-    iframe.contentWindow.postMessage({
+    if (!iframe) {
+      return;
+    }
+    if (!iframe.contentWindow) {
+      return;
+    }
+    if (iframeLoadedEpochRef.current[app.id] !== app.iframeEpoch) {
+      talosBridgeDebugLog("host_to_iframe_theme_skipped", {
+        reason: "iframe_not_loaded_for_epoch",
+        instanceId: app.id,
+        epoch: app.iframeEpoch,
+        loadedEpoch: iframeLoadedEpochRef.current[app.id],
+      });
+      return;
+    }
+    const shellOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const componentsPath = activeThemeVariant.components_css_href || "/talos/components.css";
+    const componentsAbs = componentsPath.startsWith("/")
+      ? `${shellOrigin}${componentsPath}`
+      : `${shellOrigin}/${componentsPath}`;
+    const payload = {
       channel: "talos:theme:v1",
       type: "talos:theme:update",
       theme_name: currentTheme,
       variant_id: activeThemeVariant.variant_id,
-      theme_href: `/themes/${encodeURIComponent(currentTheme)}.css`,
-      tokens_href: "talos/tokens.css",
-      components_css_href: activeThemeVariant.components_css_href || "talos/components.css",
-    }, target);
+      theme_href: `${shellOrigin}/themes/${encodeURIComponent(currentTheme)}.css`,
+      tokens_href: `${shellOrigin}/talos/tokens.css`,
+      components_css_href: componentsAbs,
+    };
+    try {
+      // Theme payloads are only CSS URLs (no bridge secrets). `*` avoids WebKit mismatches when
+      // iframe.src origin ≠ live document (e.g. dev server down → embedded error page).
+      talosBridgeDebugLog("host_to_iframe_theme", {
+        instanceId: app.id,
+        iframeSrc: iframe.src,
+        targetOrigin: "*",
+      });
+      iframe.contentWindow.postMessage(payload, "*");
+    } catch {
+      /* postMessage can fail for cross-origin or torn-down frames */
+    }
   }
 
   useEffect(() => {
@@ -881,6 +1045,14 @@ export default function App(): React.ReactElement {
       postThemeUpdateToApp(app);
     }
   }, [activeApps, currentTheme, activeThemeVariant]);
+
+  // Launchpad/Settings are full-viewport panels; app-tab focus must not stay set while they are visible
+  // (otherwise the sidebar can show an app as "active" while the viewport still shows Launchpad).
+  useEffect(() => {
+    if (!focusedAppId) return;
+    if (!launchpadVisible && !settingsVisible) return;
+    setFocusedAppId(null);
+  }, [launchpadVisible, settingsVisible, focusedAppId]);
 
   function resolvePermissionPrompt(granted: boolean): void {
     if (!permissionPrompt) return;
@@ -896,7 +1068,9 @@ export default function App(): React.ReactElement {
     <main className="shell">
       <aside className="sidebar">
         <button
+          type="button"
           className={`icon-btn ${launchpadVisible ? "active" : ""}`}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             setFocusedAppId(null);
             setLaunchpadVisible(true);
@@ -909,9 +1083,15 @@ export default function App(): React.ReactElement {
         <div className="tabs">
           {activeApps.map((app) => (
             <button
+              type="button"
               key={app.id}
-              className={`icon-btn ${focusedAppId === app.id ? "active" : ""}`}
-              onClick={() => focusApp(app.id)}
+              className={`icon-btn ${
+                focusedAppId === app.id && !launchpadVisible && !settingsVisible ? "active" : ""
+              }`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                focusApp(app.id);
+              }}
               onContextMenu={(event) =>
                 showContextMenu(event, app.name, "app-tab", appViewContextItems(app))
               }
@@ -950,7 +1130,9 @@ export default function App(): React.ReactElement {
           ))}
         </div>
         <button
+          type="button"
           className={`icon-btn ${settingsVisible ? "active" : ""}`}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             setFocusedAppId(null);
             setSettingsVisible((prev) => !prev);
@@ -976,7 +1158,9 @@ export default function App(): React.ReactElement {
                   <button
                     key={app.id}
                     className="app-card"
-                    onClick={() => void launchApp(app)}
+                    onClick={() => {
+                      void launchApp(app);
+                    }}
                     onContextMenu={(event) =>
                       showContextMenu(event, app.name, "launchpad-card", [
                         {
@@ -1178,18 +1362,13 @@ export default function App(): React.ReactElement {
               }}
             >
               {activeApps.map((app) => (
-                <iframe
+                <TalosPackageIframe
                   key={`${app.id}:${app.iframeEpoch}`}
-                  src={app.url}
-                  title={app.name}
-                  data-talos-manifest-id={app.manifestId}
-                  data-talos-bridge-token={app.bridgeToken}
-                  ref={(node) => {
-                    iframeRefs.current[app.id] = node;
-                  }}
-                  style={{ display: focusedAppId === app.id ? "block" : "none" }}
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                  onLoad={() => postThemeUpdateToApp(app)}
+                  app={app}
+                  isFocused={focusedAppId === app.id}
+                  iframeRefs={iframeRefs}
+                  iframeLoadedEpochRef={iframeLoadedEpochRef}
+                  postThemeUpdate={postThemeUpdateToApp}
                 />
               ))}
             </section>
@@ -1214,6 +1393,12 @@ export default function App(): React.ReactElement {
                     onClick={() => setSettingsTab("permissions")}
                   >
                     Permissions
+                  </button>
+                  <button
+                    className={`settings-tab ${settingsTab === "developer" ? "active" : ""}`}
+                    onClick={() => setSettingsTab("developer")}
+                  >
+                    Developer
                   </button>
                   <button
                     className={`settings-tab ${settingsTab === "about" ? "active" : ""}`}
@@ -1373,6 +1558,39 @@ export default function App(): React.ReactElement {
                         ))
                       )}
                     </ul>
+                  </div>
+                )}
+
+                {settingsTab === "developer" && (
+                  <div>
+                    <h3>Developer mode</h3>
+                    <p className="perm-hint">
+                      When enabled, installed packages that declare <code>development.command</code> can run dev servers (for example{" "}
+                      <code>npm run dev</code>) and use loopback dev URLs instead of only bundled static assets under{" "}
+                      <code>/talos-pkg/</code>. Commands come from package manifests—enable only for packages you trust.
+                    </p>
+                    <label className="dev-mode-toggle">
+                      <input
+                        type="checkbox"
+                        checked={developerMode}
+                        onChange={(e) => {
+                          const v = e.target.checked;
+                          void SetDeveloperMode(v)
+                            .then(() => {
+                              setDeveloperMode(v);
+                              return reloadCatalog();
+                            })
+                            .then(() =>
+                              DevelopmentFeaturesEnabled().then((en) => setInstallUiEnabled(!!en)),
+                            );
+                        }}
+                      />
+                      <span>Enable developer mode (manifest dev commands)</span>
+                    </label>
+                    <p className="perm-hint">
+                      Machine override: set environment variable <code>TALOS_DEV_MODE=1</code> to enable the same behavior without this toggle
+                      (useful for automation).
+                    </p>
                   </div>
                 )}
 

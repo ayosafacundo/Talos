@@ -30,6 +30,22 @@ export namespace main {
 	        this.trust_status = source["trust_status"];
 	    }
 	}
+	export class PackageLocalHTTPResponse {
+	    status: number;
+	    content_type: string;
+	    body: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PackageLocalHTTPResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.content_type = source["content_type"];
+	        this.body = source["body"];
+	    }
+	}
 	export class PermissionAuditEntry {
 	    ts: string;
 	    action: string;
@@ -125,6 +141,7 @@ export namespace main {
 	export class UserPrefs {
 	    theme: string;
 	    tab_colors: Record<string, string>;
+	    developer_mode?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UserPrefs(source);
@@ -134,6 +151,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
 	        this.tab_colors = source["tab_colors"];
+	        this.developer_mode = source["developer_mode"];
 	    }
 	}
 

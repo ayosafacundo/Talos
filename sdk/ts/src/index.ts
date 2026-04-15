@@ -1,4 +1,6 @@
 export * from "./types"
 export * from "./client"
+export * from "./bridge-debug"
 export * from "./iframe-bridge"
+export * from "./theme-origin"
 export * from "./theme-runtime"

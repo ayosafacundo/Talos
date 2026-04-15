@@ -8,6 +8,11 @@ export type TalosAppRuntime = {
   ensureFilesystemPermission: (relativePath?: string) => Promise<void>
   saveText: (relativePath: string, text: string) => Promise<void>
   loadText: (relativePath: string) => Promise<ScopedTextReadResult>
+  packageLocalHttp: (
+    method: string,
+    path: string,
+    body?: string,
+  ) => Promise<{ status: number; content_type: string; body: string }>
 }
 
 export function registerTalosWebComponents(): void

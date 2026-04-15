@@ -49,11 +49,10 @@ func (m *Manager) Start(ctx context.Context, pkg *packages.PackageInfo, extraEnv
 	appID := pkg.Manifest.ID
 	m.mu.RLock()
 	logDir := m.logDir
-	m.mu.RUnlock()
-	m.mu.RLock()
 	if _, ok := m.running[appID]; ok {
 		m.mu.RUnlock()
-		return fmt.Errorf("process: app %q already running", appID)
+		// Idempotent: Launchpad may call StartPackage again on refocus; binary should stay up.
+		return nil
 	}
 	m.mu.RUnlock()
 

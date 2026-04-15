@@ -52,6 +52,16 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* Toolbar tabs: selection is `.active` only — avoid OS/WebKit focus ring looking like "selected". */
+.icon-btn:focus {
+  outline: none;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent-color, #78a84a);
+  outline-offset: 2px;
+}
+
 .icon-btn.active {
   border-color: var(--accent-color, #78a84a);
   box-shadow: 0 0 0 2px var(--accent-glow, rgba(120, 168, 74, 0.35));
@@ -364,11 +374,13 @@ html, body, #root {
 .show {
   visibility: visible;
   opacity: 1;
+  pointer-events: auto;
 }
 
 .hide {
   visibility: hidden;
   opacity: 0;
+  pointer-events: none;
 }
 
 .error {
@@ -457,6 +469,19 @@ html, body, #root {
   font-size: 12px;
   color: var(--text-secondary, #aaa);
   margin: 10px 0 14px;
+}
+
+.dev-mode-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dev-mode-toggle input {
+  margin-top: 3px;
 }
 
 .perm-actions {

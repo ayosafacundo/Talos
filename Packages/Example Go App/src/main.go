@@ -42,7 +42,7 @@ func main() {
 		fmt.Printf("example-go-app: permission granted=%t message=%s\n", granted, message)
 	}
 
-	if err := client.WriteScopedFile(ctx, appID, "example-go-app/heartbeat.txt", []byte("ok\n")); err != nil {
+	if err := client.WriteScopedFile(ctx, appID, "heartbeat.txt", []byte("ok\n")); err != nil {
 		fmt.Printf("example-go-app: scoped write failed: %v\n", err)
 	}
 

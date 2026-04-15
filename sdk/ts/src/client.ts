@@ -45,6 +45,17 @@ export class TalosClient {
     await this.transport.writeScopedText(this.appId, relativePath, text)
   }
 
+  async packageLocalHttp(method: string, path: string, body = ""): Promise<{
+    status: number
+    content_type: string
+    body: string
+  }> {
+    if (!this.transport.packageLocalHttp) {
+      throw new Error("transport does not support package local HTTP")
+    }
+    return this.transport.packageLocalHttp(this.appId, method, path, body)
+  }
+
   async setContextMenuOptions(options: ContextMenuOption[]): Promise<void> {
     if (!this.transport.setContextMenuOptions) {
       throw new Error("transport does not support context menu options")
