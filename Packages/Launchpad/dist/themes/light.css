@@ -1,0 +1,22 @@
+/* Preset: warm light */
+:root {
+  --talos-color-bg-primary: #c6b99d;
+  --talos-color-bg-secondary: #a89070;
+  --talos-color-bg-tertiary: #8b7355;
+  --talos-color-bg-surface: #d4c4a8;
+  --talos-color-bg-overlay: rgba(198, 185, 157, 0.92);
+  --talos-color-text-primary: #3b3022;
+  --talos-color-text-secondary: #5a4a38;
+  --talos-color-text-muted: #8a7a68;
+  --talos-color-text-accent: #2d6a1e;
+  --talos-color-accent: #4a8c3f;
+  --talos-color-accent-hover: #5ca04f;
+  --talos-color-accent-glow: rgba(74, 140, 63, 0.3);
+  --talos-color-border: #a09078;
+  --talos-color-sidebar: #7a6a52;
+  --talos-sidebar-active: #4a8c3f;
+  --talos-slot-bg: #b8a888;
+  --talos-slot-border-light: #d8c8a8;
+  --talos-slot-border-dark: #8a7a5a;
+  --talos-slot-hover: #c8b898;
+}

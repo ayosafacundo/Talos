@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "theme_name": "minecraft",
+  "variant_id": "core.minecraft",
+  "display_name": "Minecraft Core",
+  "components_css_href": "/theme-assets/core.minecraft.components.css",
+  "notes": "Chunkier edges and stronger contrast."
+}

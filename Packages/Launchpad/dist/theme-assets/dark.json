@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "theme_name": "dark",
+  "variant_id": "core.dark",
+  "display_name": "Dark Core",
+  "components_css_href": "/theme-assets/core.dark.components.css",
+  "notes": "Neutral dark shell with accent-driven actions."
+}
